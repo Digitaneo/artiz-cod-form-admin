@@ -25,12 +25,11 @@ export async function getDashboardStats(admin) {
         }
       }
 
-      products(first: 50) {
-        edges {
-          node {
-            id
-          }
-        }
+      productsCount {
+        count
+      }
+      ordersCount {
+        count
       }
     }
   `);
@@ -49,7 +48,8 @@ export async function getDashboardStats(admin) {
 
   const orders = json.data.orders?.edges || [];
   const customers = json.data.customers?.edges || [];
-  const products = json.data.products?.edges || [];
+  const productsCount = json.data.productsCount?.count ?? 0;
+  const ordersCount = json.data.ordersCount?.count ?? orders.length;
 
   let revenue = 0;
 
@@ -88,9 +88,9 @@ export async function getDashboardStats(admin) {
     });
 
   return {
-    orders: orders.length,
+    orders: ordersCount,
     customers: customers.length,
-    products: products.length,
+    products: productsCount,
     revenue: revenue.toFixed(2),
     recentOrders,
   };

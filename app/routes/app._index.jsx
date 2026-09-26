@@ -46,10 +46,11 @@ export async function loader({ request }) {
   if (shopifyOk && session) {
     try {
       const workerStatus = await workerFetch(session, "/system/status");
+      const statusData = workerStatus?.data || workerStatus;
       systemStatus = {
-        worker: workerStatus.worker?.status === "HEALTHY",
-        kv: workerStatus.database?.kvStatus === "HEALTHY",
-        accessToken: workerStatus.security?.accessTokenStatus === "ACTIVE",
+        worker: statusData?.worker?.status === "HEALTHY",
+        kv: statusData?.database?.kvStatus === "HEALTHY",
+        accessToken: statusData?.security?.accessTokenStatus === "ACTIVE",
         shopify: shopifyOk,
       };
     } catch (error) {
