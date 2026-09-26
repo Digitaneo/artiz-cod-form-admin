@@ -1,0 +1,40 @@
+{% if block.settings.enable_app %}
+  {{ 'custom-checkout.css' | asset_url | stylesheet_tag }}
+
+  <div 
+    id="artiz-cod-global-root" 
+    data-shop="{{ shop.permanent_domain }}"
+    data-currency="{{ shop.currency }}"
+    data-primary-color="{{ block.settings.primary_color | default: '#008060' }}"
+    data-button-text="{{ block.settings.button_text | default: 'اشتري الآن - الدفع عند الاستلام' }}"
+  ></div>
+
+  <script src="{{ 'custom-checkout.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Artiz COD Form",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_app",
+      "label": "تفعيل تطبيق الدفع عند الاستلام (Enable COD App)",
+      "default": true
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "لون الزر الرئيسي (Button Color)",
+      "default": "#008060"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "نص زر الطلب السريع (Button Text)",
+      "default": "اشتري الآن - الدفع عند الاستلام"
+    }
+  ]
+}
+{% endschema %}

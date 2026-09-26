@@ -1,67 +1,34 @@
 {{ 'custom-checkout.css' | asset_url | stylesheet_tag }}
 
-<div class="artiz-cod-container" id="artiz-cod-form-wrapper" data-shop="{{ shop.permanent_domain }}">
-  <div class="artiz-cod-card">
-    <h2 class="artiz-cod-title">{{ block.settings.form_title | default: "إتمام الطلب - الدفع عند الاستلام" }}</h2>
-    
-    <form id="artiz-cod-form" class="artiz-cod-form">
-      <div class="artiz-field">
-        <label for="artiz-customer-name">الاسم الكامل *</label>
-        <input type="text" id="artiz-customer-name" name="name" required placeholder="أدخل اسمك الكامل">
-        <span class="artiz-error" id="artiz-name-error"></span>
-      </div>
-
-      <div class="artiz-field">
-        <label for="artiz-customer-phone">رقم الهاتف *</label>
-        <input type="tel" id="artiz-customer-phone" name="phone" required placeholder="05xxxxxxxx">
-        <span class="artiz-error" id="artiz-phone-error"></span>
-      </div>
-
-      <div class="artiz-field">
-        <label for="artiz-customer-city">المدينة / المنطقة *</label>
-        <select id="artiz-customer-city" name="city" required>
-          <option value="">اختر المدينة</option>
-          <option value="الرياض">الرياض</option>
-          <option value="جدة">جدة</option>
-          <option value="مكة المكرمة">مكة المكرمة</option>
-          <option value="المدينة المنورة">المدينة المنورة</option>
-          <option value="الدمام">الدمام</option>
-          <option value="أخرى">منطقة أخرى</option>
-        </select>
-        <span class="artiz-error" id="artiz-city-error"></span>
-      </div>
-
-      <div class="artiz-field">
-        <label for="artiz-customer-address">العنوان التفصيلي *</label>
-        <textarea id="artiz-customer-address" name="address" required placeholder="اسم الشارع، الحي، رقم المنزل"></textarea>
-        <span class="artiz-error" id="artiz-address-error"></span>
-      </div>
-
-      <div class="artiz-field">
-        <label for="artiz-customer-note">ملاحظات التوصيل (اختياري)</label>
-        <input type="text" id="artiz-customer-note" name="note" placeholder="مثال: يرجى الاتصال قبل الوصول بـ 15 دقيقة">
-      </div>
-
-      <button type="submit" id="artiz-submit-btn" class="artiz-btn-primary">
-        <span id="artiz-btn-text">تأكيد الطلب الآن (الدفع عند الاستلام)</span>
-        <span id="artiz-btn-loader" style="display:none;">جاري التأكيد...</span>
-      </button>
-    </form>
-  </div>
+<div 
+  class="artiz-cod-block-wrapper" 
+  id="artiz-cod-form-wrapper" 
+  data-shop="{{ shop.permanent_domain }}"
+  data-currency="{{ shop.currency }}"
+>
+  <button 
+    type="button" 
+    class="artiz-cod-trigger-btn artiz-pulse" 
+    id="artiz-block-trigger-btn"
+    onclick="if(window.artizOpenModal) window.artizOpenModal(); else document.getElementById('artiz-direct-buy-btn')?.click();"
+  >
+    <span>🛍️</span>
+    <span>{{ block.settings.button_title | default: "اشتري الآن - الدفع عند الاستلام" }}</span>
+  </button>
 </div>
 
 <script src="{{ 'custom-checkout.js' | asset_url }}" defer></script>
 
 {% schema %}
 {
-  "name": "Artiz COD Form",
+  "name": "Artiz COD Checkout Block",
   "target": "section",
   "settings": [
     {
       "type": "text",
-      "id": "form_title",
-      "label": "Form Header Title",
-      "default": "إتمام الطلب - الدفع عند الاستلام"
+      "id": "button_title",
+      "label": "Button Label",
+      "default": "اشتري الآن - الدفع عند الاستلام"
     }
   ]
 }

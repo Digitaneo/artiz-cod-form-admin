@@ -1,88 +1,478 @@
-.artiz-cod-container {
-  max-width: 550px;
-  margin: 20px auto;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+:root {
+  --artiz-primary: #008060;
+  --artiz-primary-hover: #006e52;
+  --artiz-text: #1a1a1a;
+  --artiz-muted: #666666;
+  --artiz-border: #e2e8f0;
+  --artiz-bg: #ffffff;
+  --artiz-card-bg: #f8fafc;
+  --artiz-radius: 12px;
+  --artiz-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================================
+   1. TRIGGER BUTTONS (Product Page & Cart)
+   ============================================================ */
+.artiz-cod-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  background-color: var(--artiz-primary);
+  color: #ffffff !important;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--artiz-radius);
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 128, 96, 0.25);
+  transition: all 0.25s ease;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.artiz-cod-trigger-btn:hover {
+  background-color: var(--artiz-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 128, 96, 0.35);
+}
+
+/* Pulse animation for high conversion */
+.artiz-pulse {
+  animation: artizPulse 2s infinite;
+}
+
+@keyframes artizPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   2. OVERLAY & BACKDROP
+   ============================================================ */
+.artiz-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  box-sizing: border-box;
+}
+
+.artiz-modal-overlay.artiz-active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ============================================================
+   3. MODAL (POPUP MODE)
+   ============================================================ */
+.artiz-modal-container {
+  background: var(--artiz-bg);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--artiz-shadow);
+  position: relative;
+  transform: scale(0.95) translateY(10px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   direction: rtl;
   text-align: right;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
-.artiz-cod-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
+.artiz-modal-overlay.artiz-active .artiz-modal-container {
+  transform: scale(1) translateY(0);
 }
 
-.artiz-cod-title {
-  font-size: 20px;
+/* ============================================================
+   4. SLIDE-OUT DRAWER MODE
+   ============================================================ */
+.artiz-modal-overlay.artiz-drawer-mode {
+  padding: 0;
+  justify-content: flex-end;
+}
+
+.artiz-modal-overlay.artiz-drawer-mode .artiz-modal-container {
+  max-width: 460px;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  transform: translateX(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artiz-modal-overlay.artiz-drawer-mode.artiz-active .artiz-modal-container {
+  transform: translateX(0);
+}
+
+/* ============================================================
+   5. MODAL HEADER & CLOSE BUTTON
+   ============================================================ */
+.artiz-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--artiz-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: var(--artiz-bg);
+  z-index: 10;
+}
+
+.artiz-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
-  color: #111827;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #10b981;
-  padding-bottom: 8px;
+  color: var(--artiz-text);
 }
 
-.artiz-cod-form .artiz-field {
-  margin-bottom: 16px;
+.artiz-close-btn {
+  background: #f1f5f9;
+  border: none;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--artiz-muted);
+  transition: all 0.2s ease;
 }
 
-.artiz-cod-form label {
-  display: block;
+.artiz-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ============================================================
+   6. PRODUCTS & CART SUMMARY SECTION
+   ============================================================ */
+.artiz-section-box {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--artiz-border);
+}
+
+.artiz-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.artiz-item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--artiz-card-bg);
+  border: 1px solid var(--artiz-border);
+  border-radius: 10px;
+  padding: 10px;
+  position: relative;
+}
+
+.artiz-item-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.artiz-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.artiz-item-title {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--artiz-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 0 4px 0;
+}
+
+.artiz-item-variant {
+  font-size: 12px;
+  color: var(--artiz-muted);
+  margin: 0 0 6px 0;
+}
+
+.artiz-item-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--artiz-primary);
+}
+
+/* Stepper Quantity (+ / -) */
+.artiz-stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--artiz-border);
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.artiz-stepper button {
+  background: none;
+  border: none;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  color: var(--artiz-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artiz-stepper button:hover {
+  background: #f1f5f9;
+}
+
+.artiz-stepper span {
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.artiz-item-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+/* ============================================================
+   7. COUPON / DISCOUNT BOX
+   ============================================================ */
+.artiz-coupon-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.artiz-coupon-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px dashed var(--artiz-border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+  direction: ltr;
+  text-align: left;
+}
+
+.artiz-coupon-btn {
+  padding: 10px 18px;
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ============================================================
+   8. TOTAL BREAKDOWN
+   ============================================================ */
+.artiz-summary-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--artiz-muted);
+}
+
+.artiz-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.artiz-summary-row.artiz-total-row {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--artiz-text);
+  border-top: 1px dashed var(--artiz-border);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+/* ============================================================
+   9. CUSTOMER FORM FIELDS
+   ============================================================ */
+.artiz-form-body {
+  padding: 20px 24px;
+}
+
+.artiz-field-group {
+  margin-bottom: 14px;
+}
+
+.artiz-field-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
   margin-bottom: 6px;
 }
 
-.artiz-cod-form input,
-.artiz-cod-form select,
-.artiz-cod-form textarea {
+.artiz-field-group input,
+.artiz-field-group select,
+.artiz-field-group textarea {
   width: 100%;
   padding: 12px 14px;
-  font-size: 15px;
-  border: 1px solid #d1d5db;
+  border: 1.5px solid var(--artiz-border);
   border-radius: 8px;
-  background-color: #f9fafb;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-
-.artiz-cod-form input:focus,
-.artiz-cod-form select:focus,
-.artiz-cod-form textarea:focus {
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
   outline: none;
-  border-color: #10b981;
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  font-family: inherit;
 }
 
-.artiz-btn-primary {
-  width: 100%;
-  padding: 14px;
-  font-size: 17px;
-  font-weight: 700;
-  color: #ffffff;
-  background-color: #10b981;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-top: 12px;
-  transition: background-color 0.2s;
+.artiz-field-group input:focus,
+.artiz-field-group select:focus,
+.artiz-field-group textarea:focus {
+  border-color: var(--artiz-primary);
+  box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.15);
 }
 
-.artiz-btn-primary:hover {
-  background-color: #059669;
+.artiz-field-group textarea {
+  resize: vertical;
+  min-height: 60px;
 }
 
-.artiz-btn-primary:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-
-.artiz-error {
+.artiz-field-error {
   color: #ef4444;
   font-size: 12px;
   margin-top: 4px;
-  display: block;
+  display: none;
+}
+
+/* ============================================================
+   10. SUBMIT BUTTON
+   ============================================================ */
+.artiz-submit-button {
+  width: 100%;
+  padding: 16px 24px;
+  background-color: var(--artiz-primary);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  border: none;
+  border-radius: var(--artiz-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.artiz-submit-button:hover:not(:disabled) {
+  background-color: var(--artiz-primary-hover);
+  transform: translateY(-1px);
+}
+
+.artiz-submit-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.artiz-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: artizSpin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes artizSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   11. STICKY BUY BAR (MOBILE ONLY)
+   ============================================================ */
+.artiz-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #ffffff;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 99998;
+  box-sizing: border-box;
+  direction: rtl;
+}
+
+.artiz-sticky-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.artiz-sticky-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artiz-sticky-price {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--artiz-primary);
+}
+
+@media (min-width: 768px) {
+  .artiz-sticky-bar {
+    display: none;
+  }
 }

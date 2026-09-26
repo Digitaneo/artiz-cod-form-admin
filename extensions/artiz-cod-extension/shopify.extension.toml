@@ -11,3 +11,8 @@ templates = ["cart", "product", "page"]
 name = "Artiz COD Thank You Summary"
 target = "section"
 templates = ["page"]
+
+[blocks.artiz_cod_embed]
+name = "Artiz COD Form"
+target = "body"
+
