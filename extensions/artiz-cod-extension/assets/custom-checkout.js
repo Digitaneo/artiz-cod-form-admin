@@ -58,31 +58,51 @@
     };
   }
 
-  // 2. Setup Product Page Direct Buy Button
+  // 2. Setup Product Page Dual Action Buttons
   function setupProductPageTrigger() {
     if (!activeConfig.directBuyTrigger) return;
 
     // Detect if we are on a product page
     const productForm = document.querySelector('form[action*="/cart/add"]');
-    if (!productForm || document.getElementById("artiz-direct-buy-btn")) return;
+    if (!productForm || document.getElementById("artiz-product-dual-actions")) return;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "artiz-direct-buy-btn";
-    btn.className = "artiz-cod-trigger-btn artiz-pulse";
-    btn.innerHTML = `<span>🛍️</span> <span>${activeConfig.buttonText || "اشتري الآن - الدفع عند الاستلام"}</span>`;
+    const container = document.createElement("div");
+    container.id = "artiz-product-dual-actions";
+    container.className = "artiz-dual-actions";
 
-    btn.addEventListener("click", async function (e) {
+    // Button 1: Add to Cart
+    const addCartBtn = document.createElement("button");
+    addCartBtn.type = "button";
+    addCartBtn.id = "artiz-product-add-cart-btn";
+    addCartBtn.className = "artiz-secondary-btn";
+    addCartBtn.innerHTML = `<span>🛒</span> <span id="artiz-add-cart-text">أضف إلى السلة</span>`;
+
+    addCartBtn.addEventListener("click", async function (e) {
       e.preventDefault();
-      await handleDirectProductBuy(productForm);
+      await handleAddToCart(productForm, addCartBtn);
     });
+
+    // Button 2: Order Now - Cash on Delivery
+    const buyNowBtn = document.createElement("button");
+    buyNowBtn.type = "button";
+    buyNowBtn.id = "artiz-direct-buy-btn";
+    buyNowBtn.className = "artiz-cod-trigger-btn artiz-pulse";
+    buyNowBtn.innerHTML = `<span>⚡</span> <span>${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>`;
+
+    buyNowBtn.addEventListener("click", async function (e) {
+      e.preventDefault();
+      await handleSmartCheckout(productForm);
+    });
+
+    container.appendChild(addCartBtn);
+    container.appendChild(buyNowBtn);
 
     // Insert after main Add to cart / Buy Now button
     const submitBtn = productForm.querySelector('button[type="submit"], input[type="submit"]');
     if (submitBtn && submitBtn.parentNode) {
-      submitBtn.parentNode.insertBefore(btn, submitBtn.nextSibling);
+      submitBtn.parentNode.insertBefore(container, submitBtn.nextSibling);
     } else {
-      productForm.appendChild(btn);
+      productForm.appendChild(container);
     }
 
     // Sticky buy bar for mobile if enabled
@@ -91,62 +111,146 @@
     }
   }
 
-  async function handleDirectProductBuy(productForm) {
+  // Handle Add To Cart
+  async function handleAddToCart(productForm, btn) {
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
     const variantId = variantInput ? variantInput.value : null;
     const qtyInput = productForm.querySelector('input[name="quantity"]');
     const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
 
     if (!variantId) {
-      alert("يرجى اختيار مقاس أو مواصفات المنتج أولاً.");
+      alert("يرجى اختيار مقاس أو خيارات المنتج أولاً.");
       return;
     }
 
-    // Fetch product json to get nice title, image, and price
-    let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
-    let price = 0;
-    let image = "";
-    let variantTitle = "";
+    const label = btn.querySelector("#artiz-add-cart-text");
+    btn.disabled = true;
+    if (label) label.textContent = "جاري الإضافة...";
 
     try {
-      const pathname = window.location.pathname;
-      const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
-      if (productHandle) {
-        const pRes = await fetch(`/products/${productHandle}.js`);
-        const pData = await pRes.json();
-        title = pData.title;
-        image = pData.featured_image || "";
-        const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
-        if (variantObj) {
-          price = variantObj.price / 100;
-          variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
-          if (variantObj.featured_image?.src) {
-            image = variantObj.featured_image.src;
+      const res = await fetch("/cart/add.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ id: Number(variantId), quantity }]
+        })
+      });
+
+      if (!res.ok) throw new Error("تعذر إضافة المنتج للسلة");
+
+      btn.classList.add("artiz-added");
+      if (label) label.textContent = "✓ تمت الإضافة إلى السلة بنجاح!";
+
+      // Update cart bubble count if present
+      try {
+        const cartRes = await fetch("/cart.js");
+        const cartData = await cartRes.json();
+        document.querySelectorAll('.cart-count-bubble, [data-cart-count]').forEach(el => {
+          el.textContent = cartData.item_count;
+        });
+      } catch (_) {}
+
+      setTimeout(() => {
+        btn.classList.remove("artiz-added");
+        if (label) label.textContent = "أضف إلى السلة";
+        btn.disabled = false;
+      }, 2500);
+
+    } catch (err) {
+      alert(err.message || "حدث خطأ أثناء الإضافة للسلة");
+      if (label) label.textContent = "أضف إلى السلة";
+      btn.disabled = false;
+    }
+  }
+
+  // Handle Smart Checkout (Current product + existing cart items if any)
+  async function handleSmartCheckout(productForm) {
+    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
+    const variantId = variantInput ? variantInput.value : null;
+    const qtyInput = productForm.querySelector('input[name="quantity"]');
+    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+
+    let currentProduct = null;
+
+    if (variantId) {
+      let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
+      let price = 0;
+      let image = "";
+      let variantTitle = "";
+
+      try {
+        const pathname = window.location.pathname;
+        const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
+        if (productHandle) {
+          const pRes = await fetch(`/products/${productHandle}.js`);
+          const pData = await pRes.json();
+          title = pData.title;
+          image = pData.featured_image || "";
+          const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
+          if (variantObj) {
+            price = variantObj.price / 100;
+            variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
+            if (variantObj.featured_image?.src) {
+              image = variantObj.featured_image.src;
+            }
           }
         }
+      } catch (e) {
+        console.warn("Could not fetch product details", e);
       }
-    } catch (e) {
-      console.warn("Could not fetch product meta json", e);
+
+      currentProduct = {
+        variantId,
+        title,
+        variantTitle,
+        price,
+        image,
+        quantity
+      };
     }
 
-    // Set as single-item order
-    orderItems = [{
-      variantId,
-      title,
-      variantTitle,
-      price,
-      image,
-      quantity
-    }];
+    // Inspect Cart
+    try {
+      const cRes = await fetch("/cart.js");
+      const cart = await cRes.json();
+
+      if (cart.items && cart.items.length > 0) {
+        // Map cart items
+        orderItems = cart.items.map(item => ({
+          variantId: item.variant_id,
+          title: item.product_title || item.title,
+          variantTitle: item.variant_title || "",
+          price: item.price / 100,
+          image: item.image || item.featured_image?.url || "",
+          quantity: item.quantity
+        }));
+
+        // If current product is not already in cart, append it
+        if (currentProduct && !orderItems.some(i => String(i.variantId) === String(currentProduct.variantId))) {
+          orderItems.unshift(currentProduct);
+        }
+      } else if (currentProduct) {
+        // Cart is empty, use current product only
+        orderItems = [currentProduct];
+      }
+    } catch (_) {
+      if (currentProduct) orderItems = [currentProduct];
+    }
+
+    if (orderItems.length === 0) {
+      alert("يرجى اختيار منتج لشرائه.");
+      return;
+    }
 
     openArtizModal();
   }
 
-  // 3. Setup Cart Page Trigger
+  // 3. Setup Cart Page Trigger (ONLY on actual cart pages/drawers, NOT product pages)
   function setupCartPageTrigger() {
     if (!activeConfig.cartDrawerTrigger) return;
+    if (window.location.pathname.includes("/products/")) return;
 
-    const cartForms = document.querySelectorAll('form[action*="/cart"]');
+    const cartForms = document.querySelectorAll('form[action="/cart"], form[action*="/cart?"]');
     cartForms.forEach(cartForm => {
       if (cartForm.querySelector(".artiz-cart-cod-btn")) return;
 
