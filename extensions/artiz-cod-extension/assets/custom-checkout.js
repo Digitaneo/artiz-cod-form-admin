@@ -70,24 +70,24 @@
     container.id = "artiz-product-dual-actions";
     container.className = "artiz-dual-actions";
 
-    // Button 1: Add to Cart
+    // Button 1: Add to Cart (Clean text, no emojis)
     const addCartBtn = document.createElement("button");
     addCartBtn.type = "button";
     addCartBtn.id = "artiz-product-add-cart-btn";
     addCartBtn.className = "artiz-secondary-btn";
-    addCartBtn.innerHTML = `<span>🛒</span> <span id="artiz-add-cart-text">أضف إلى السلة</span>`;
+    addCartBtn.innerHTML = `<span id="artiz-add-cart-text">أضف إلى السلة</span>`;
 
     addCartBtn.addEventListener("click", async function (e) {
       e.preventDefault();
       await handleAddToCart(productForm, addCartBtn);
     });
 
-    // Button 2: Order Now - Cash on Delivery
+    // Button 2: Order Now (Exact text from dashboard config, no emojis)
     const buyNowBtn = document.createElement("button");
     buyNowBtn.type = "button";
     buyNowBtn.id = "artiz-direct-buy-btn";
     buyNowBtn.className = "artiz-cod-trigger-btn artiz-pulse";
-    buyNowBtn.innerHTML = `<span>⚡</span> <span>${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>`;
+    buyNowBtn.innerHTML = `<span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>`;
 
     buyNowBtn.addEventListener("click", async function (e) {
       e.preventDefault();
@@ -260,7 +260,7 @@
       const codCartBtn = document.createElement("button");
       codCartBtn.type = "button";
       codCartBtn.className = "artiz-cod-trigger-btn artiz-cart-cod-btn";
-      codCartBtn.innerHTML = `<span>🚚</span> <span>إتمام الطلب - الدفع عند الاستلام</span>`;
+      codCartBtn.innerHTML = `<span>إتمام الطلب - الدفع عند الاستلام</span>`;
 
       codCartBtn.addEventListener("click", async function (e) {
         e.preventDefault();

@@ -28,9 +28,6 @@ export async function getDashboardStats(admin) {
       productsCount {
         count
       }
-      ordersCount {
-        count
-      }
     }
   `);
 

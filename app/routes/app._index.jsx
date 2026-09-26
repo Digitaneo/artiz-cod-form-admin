@@ -43,7 +43,7 @@ export async function loader({ request }) {
     shopify: shopifyOk,
   };
 
-  if (shopifyOk && session) {
+  if (session) {
     try {
       const workerStatus = await workerFetch(session, "/system/status");
       const statusData = workerStatus?.data || workerStatus;

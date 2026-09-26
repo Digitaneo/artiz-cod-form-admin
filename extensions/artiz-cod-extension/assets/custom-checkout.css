@@ -15,10 +15,26 @@
    ============================================================ */
 .artiz-dual-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   margin: 12px 0;
+  box-sizing: border-box;
+}
+
+.artiz-dual-actions .artiz-secondary-btn,
+.artiz-dual-actions .artiz-cod-trigger-btn {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  margin: 0;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .artiz-secondary-btn {
