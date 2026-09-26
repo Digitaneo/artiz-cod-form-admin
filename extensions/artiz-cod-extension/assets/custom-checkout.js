@@ -11,6 +11,18 @@
   let orderItems = []; // [{ variantId, title, variantTitle, price, image, quantity }]
   let currentShop = "";
   let appliedDiscount = null;
+  let loggedCustomer = null;
+
+  function getLoggedCustomer() {
+    if (loggedCustomer) return loggedCustomer;
+    try {
+      const custEl = document.getElementById("artiz-logged-customer-data");
+      if (custEl) {
+        loggedCustomer = JSON.parse(custEl.textContent);
+      }
+    } catch (_) {}
+    return loggedCustomer;
+  }
 
   // 1. Initialize
   document.addEventListener("DOMContentLoaded", initArtizCOD);
@@ -346,17 +358,34 @@
 
         <!-- Customer Form Section -->
         <form id="artiz-checkout-form" class="artiz-form-body">
+          ${(() => {
+            const cust = getLoggedCustomer();
+            if (!cust) return "";
+            return `
+              <div class="artiz-logged-in-banner">
+                <div class="artiz-logged-in-avatar">👤</div>
+                <div class="artiz-logged-in-content">
+                  <div class="artiz-logged-in-title">
+                    <span class="artiz-logged-in-name">مرحباً، ${cust.name || cust.firstName || "عميلنا العزيز"}</span>
+                    <span class="artiz-logged-in-badge">مسجل الدخول</span>
+                  </div>
+                  <p class="artiz-logged-in-desc">تم ملء بيانات الشحن المسجلة بحسابك تلقائياً. يمكنك تعديل أي حقل أدناه للشحن إلى عنوان مختلف.</p>
+                </div>
+              </div>
+            `;
+          })()}
+
           ${activeConfig.requiredFields?.name !== false ? `
             <div class="artiz-field-group">
               <label>الاسم الكامل *</label>
-              <input type="text" id="artiz-input-name" required placeholder="مثال: أحمد محمد">
+              <input type="text" id="artiz-input-name" required placeholder="مثال: أحمد محمد" value="${getLoggedCustomer()?.name || ""}">
             </div>
           ` : ""}
 
           ${activeConfig.requiredFields?.phone !== false ? `
             <div class="artiz-field-group">
               <label>رقم الهاتف للتوصيل *</label>
-              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 05xxxxxxxx">
+              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 05xxxxxxxx" value="${getLoggedCustomer()?.phone || ""}">
             </div>
           ` : ""}
 
@@ -366,7 +395,10 @@
               <select id="artiz-input-city" required>
                 <option value="">اختر المدينة...</option>
                 ${(activeConfig.citiesList || ["الرياض", "جدة", "مكة المكرمة", "الدمام", "أخرى"])
-                  .map(c => `<option value="${c}">${c}</option>`).join("")}
+                  .map(c => `<option value="${c}" ${getLoggedCustomer()?.city === c ? "selected" : ""}>${c}</option>`).join("")}
+                ${getLoggedCustomer()?.city && !(activeConfig.citiesList || []).includes(getLoggedCustomer().city) 
+                  ? `<option value="${getLoggedCustomer().city}" selected>${getLoggedCustomer().city}</option>` 
+                  : ""}
               </select>
             </div>
           ` : ""}
@@ -374,7 +406,7 @@
           ${activeConfig.requiredFields?.address !== false ? `
             <div class="artiz-field-group">
               <label>العنوان التفصيلي (الحي، الشارع، المعلم) *</label>
-              <textarea id="artiz-input-address" required placeholder="اكتب اسم الحي والشارع ورقم البناية"></textarea>
+              <textarea id="artiz-input-address" required placeholder="اكتب اسم الحي والشارع ورقم البناية">${getLoggedCustomer()?.address || ""}</textarea>
             </div>
           ` : ""}
 
@@ -413,6 +445,30 @@
 
   function openArtizModal() {
     renderOrderItemsList();
+    const cust = getLoggedCustomer();
+    if (cust) {
+      const nameInput = document.getElementById("artiz-input-name");
+      const phoneInput = document.getElementById("artiz-input-phone");
+      const addressInput = document.getElementById("artiz-input-address");
+      const citySelect = document.getElementById("artiz-input-city");
+      if (nameInput && !nameInput.value && cust.name) nameInput.value = cust.name;
+      if (phoneInput && !phoneInput.value && cust.phone) phoneInput.value = cust.phone;
+      if (addressInput && !addressInput.value && cust.address) addressInput.value = cust.address;
+      if (citySelect && !citySelect.value && cust.city) {
+        let found = false;
+        for (let i = 0; i < citySelect.options.length; i++) {
+          if (citySelect.options[i].value === cust.city) {
+            citySelect.selectedIndex = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          const opt = new Option(cust.city, cust.city, true, true);
+          citySelect.add(opt);
+        }
+      }
+    }
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
   }
@@ -569,10 +625,13 @@
 
     try {
       const affiliateData = getAffiliateTrackingData();
+      const cust = getLoggedCustomer();
 
       const payload = {
         shop: currentShop,
         customer: {
+          id: cust?.id || undefined,
+          email: cust?.email || undefined,
           name,
           phone,
           city,

@@ -1,6 +1,22 @@
 {% if block.settings.enable_app %}
   {{ 'custom-checkout.css' | asset_url | stylesheet_tag }}
 
+  {% if customer %}
+    <script id="artiz-logged-customer-data" type="application/json">
+      {
+        "id": {{ customer.id | json }},
+        "name": {{ customer.name | json }},
+        "firstName": {{ customer.first_name | json }},
+        "lastName": {{ customer.last_name | json }},
+        "email": {{ customer.email | json }},
+        "phone": {{ customer.phone | default: customer.default_address.phone | json }},
+        "address": {{ customer.default_address.address1 | json }},
+        "city": {{ customer.default_address.city | json }},
+        "country": {{ customer.default_address.country | json }}
+      }
+    </script>
+  {% endif %}
+
   <div 
     id="artiz-cod-global-root" 
     data-shop="{{ shop.permanent_domain }}"
