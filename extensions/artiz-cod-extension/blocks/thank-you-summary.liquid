@@ -1,0 +1,25 @@
+{{ 'thank-you.css' | asset_url | stylesheet_tag }}
+
+<div class="artiz-thankyou-container" id="artiz-thankyou-wrapper" data-shop="{{ shop.permanent_domain }}">
+  <div class="artiz-thankyou-card">
+    <div class="artiz-thankyou-header">
+      <div class="artiz-icon-success">✓</div>
+      <h2>شكراً لطلبك! تم استلام الطلب بنجاح</h2>
+      <p id="artiz-order-number-display">جاري جلب تفاصيل الطلب...</p>
+    </div>
+
+    <div id="artiz-thankyou-details" class="artiz-thankyou-details">
+      <!-- Dynamically filled by thank-you.js -->
+    </div>
+  </div>
+</div>
+
+<script src="{{ 'thank-you.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Artiz COD Thank You",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}

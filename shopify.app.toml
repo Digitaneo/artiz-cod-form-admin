@@ -5,6 +5,12 @@ name = "Artiz COD Form"
 application_url = "https://artiz-cod-form.digitaneo.workers.dev"
 embedded = true
 
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-07"
+
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "read_customers,write_customers,write_draft_orders,read_draft_orders,read_inventory,read_orders,write_orders,read_products,write_products"
@@ -13,9 +19,3 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ "https://artiz-cod-form.digitaneo.workers.dev/callback" ]
-
-[webhooks]
-api_version = "2026-07"
-
-[build]
-automatically_update_urls_on_dev = false

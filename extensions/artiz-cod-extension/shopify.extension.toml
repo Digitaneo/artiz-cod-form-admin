@@ -1,0 +1,13 @@
+name = "artiz-cod-extension"
+type = "theme"
+uid = "333f2a69-7999-3b6a-608b-06b4ed096e25a4741dd1"
+
+[blocks.cod_checkout_form]
+name = "Artiz COD Checkout Form"
+target = "section"
+templates = ["cart", "product", "page"]
+
+[blocks.thank_you_summary]
+name = "Artiz COD Thank You Summary"
+target = "section"
+templates = ["page"]
