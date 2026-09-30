@@ -1,17 +1,97 @@
 /**
- * Artiz COD Form Engine - Storefront Client v2.0.0
- * Supports: Instant Direct Buy, Multi-cart Checkout, Popup Modal, Side Drawer, 
- * In-modal quantity management, Coupon validation, and Affiliate tracking.
+ * Artiz COD Form Engine - Storefront Client v2.1.0
+ * Features:
+ * - Smart Cart Sync with accurate Shopify discounts, original price strikethrough, and savings badges.
+ * - Dynamic Shipping Engine with Free Shipping threshold progress bar & Stop Desk / Home delivery methods.
+ * - Cascading Location Dropdowns (Region/Wilaya -> City/Baladiya) for Morocco, Algeria, and Saudi Arabia.
+ * - Instant Direct Buy & Cart Drawer triggers.
+ * - Multi-store isolated configuration.
  */
 (function () {
   "use strict";
 
   const WORKER_URL = "https://artiz-cod-form.digitaneo.workers.dev";
   let activeConfig = null;
-  let orderItems = []; // [{ variantId, title, variantTitle, price, image, quantity }]
+  let activeShippingConfig = null;
+  let orderItems = []; // [{ variantId, title, variantTitle, price, originalPrice, discountAmount, discountTitle, image, quantity }]
   let currentShop = "";
   let appliedDiscount = null;
   let loggedCustomer = null;
+  let storeCurrency = "MAD";
+  let selectedShippingMethod = null;
+  let currentCalculatedShipping = { cost: 0, title: "توصيل سريع لجميع المدن", isFree: false };
+
+  // Built-in Regional Cascading Datasets
+  const REGIONAL_DATASETS = {
+    "MA": {
+      name: "المغرب",
+      currency: "MAD",
+      defaultRegion: "جهة الدار البيضاء - سطات",
+      regions: {
+        "جهة الدار البيضاء - سطات": ["الدار البيضاء", "المحمدية", "سطات", "برشيد", "الجديدة", "بنسليمان", "سيدي بنور"],
+        "جهة الرباط - سلا - القنيطرة": ["الرباط", "سلا", "القنيطرة", "تمارة", "الصخيرات", "الخميسات", "سيدي قاسم", "سيدي سليمان"],
+        "جهة مراكش - آسفي": ["مراكش", "آسفي", "الصويرة", "قلعة السراغنة", "ابن جرير", "شيشاوة", "الحوز"],
+        "جهة طنجة - تطوان - الحسيمة": ["طنجة", "تطوان", "العرائش", "القصر الكبير", "الحسيمة", "شفشاون", "وزان", "المضيق - الفنيدق"],
+        "جهة فاس - مكناس": ["فاس", "مكناس", "تازة", "صفرو", "إفران", "تاونات", "الحاجب", "بولمان"],
+        "جهة سوس - ماسة": ["أكادير", "إنزكان - آيت ملول", "تارودانت", "أولاد تايمة", "تيزنيت", "بيوكرى", "طاطا"],
+        "جهة الشرق": ["وجدة", "الناظور", "بركان", "تاوريرت", "جرسيف", "الدريوش", "جرادة", "بوعرفة - فكيك"],
+        "جهة بني ملال - خنيفرة": ["بني ملال", "خريبكة", "وادي زم", "خنيفرة", "الفقيه بن صالح", "أزيلال"],
+        "جهة درعة - تافيلالت": ["الرشيدية", "ورزازات", "ميدلت", "تنغير", "زاكورة"],
+        "الأقاليم الجنوبية": ["العيون", "الداخلة", "كلميم", "طانطان", "بوجدور", "السمارة", "طرفاية", "أسا الزاك"]
+      }
+    },
+    "DZ": {
+      name: "الجزائر",
+      currency: "DZD",
+      defaultRegion: "16 الجزائر العاصمة",
+      regions: {
+        "16 الجزائر العاصمة": ["الجزائر الوسطى", "باب الوادي", "الحراش", "بئر مراد رايس", "الرويبة", "زرالدة", "الشراقة", "الدرارية", "باب الزوار", "حسين داي", "بئر خادم"],
+        "31 وهران": ["وهران", "السانية", "عين الترك", "أرزيو", "بطيوة", "قديل", "بئر الجير"],
+        "25 قسنطينة": ["قسنطينة", "الخروب", "عين سمارة", "زيغود يوسف", "حامة بوزيان"],
+        "19 سطيف": ["سطيف", "العلمة", "عين ولمان", "بوقاعة", "عين الكبيرة"],
+        "09 البليدة": ["البليدة", "بوفاريك", "العفرون", "أولاد يعيش", "موزاية"],
+        "15 تيزي وزو": ["تيزي وزو", "عزازقة", "ذراع الميزان", "لاربعا ناث إيراثن"],
+        "06 بجاية": ["بجاية", "أقبو", "أميزور", "سيدي عيش", "خراطة"],
+        "13 تلمسان": ["تلمسان", "مغنية", "منصورة", "الرمشي", "سبدو"],
+        "23 عنابة": ["عنابة", "البوني", "سيدي عمار", "برحال", "عين الباردة"],
+        "01 أدرار": ["أدرار", "تيميمون", "أولف", "زاوية كنتة", "فنوغيل"],
+        "02 الشلف": ["الشلف", "تنس", "بوقادير", "واد الفضة", "أولاد فارس"],
+        "03 الأغواط": ["الأغواط", "أفلو", "حاسي الرمل", "قصر الحيران"],
+        "04 أم البواقي": ["أم البواقي", "عين البيضاء", "عين مليلة", "مسكيانة"],
+        "05 باتنة": ["باتنة", "بريكة", "عين التوتة", "مروانة", "أريس"],
+        "07 بسكرة": ["بسكرة", "طولقة", "سيدي عقبة", "أولاد جلال", "الوطاية"],
+        "08 بشار": ["بشار", "العبادلة", "بني عباس", "القنادسة"],
+        "10 البويرة": ["البويرة", "الأخضرية", "سور الغزلان", "عين بسام"],
+        "11 تمنراست": ["تمنراست", "عين صالح", "إين غزام"],
+        "12 تبسة": ["تبسة", "بئر العاتر", "الشريعة", "الونزة"],
+        "14 تيارت": ["تيارت", "السوقر", "فرندة", "قصر الشلالة"],
+        "17 الجلفة": ["الجلفة", "عين وسارة", "مسعد", "حاسي بحبح"],
+        "18 جيجل": ["جيجل", "طاهير", "الميلية", "العوانة"],
+        "20 سعيدة": ["سعيدة", "يوب", "عين الحجر"],
+        "21 سكيكدة": ["سكيكدة", "القل", "عزابة", "الحروش"],
+        "22 سيدي بلعباس": ["سيدي بلعباس", "تلاغ", "سفيزف", "ابن باديس"],
+        "24 قالمة": ["قالمة", "وادي الزناتي", "بوشقوف", "هيليوبوليس"],
+        "26 المدية": ["المدية", "البرواقية", "قصر البخاري", "بني سليمان"],
+        "27 مستغانم": ["مستغانم", "سيدي علي", "عين تادلس", "خير الدين"],
+        "28 المسيلة": ["المسيلة", "بوسعادة", "سيدي عيسى", "مقرة"],
+        "29 معسكر": ["معسكر", "سيق", "المحمدية", "تغنيف"],
+        "30 ورقلة": ["ورقلة", "تقرت", "حاسي مسعود", "الطيبات"]
+      }
+    },
+    "SA": {
+      name: "السعودية",
+      currency: "SAR",
+      defaultRegion: "منطقة الرياض",
+      regions: {
+        "منطقة الرياض": ["الرياض", "الخرج", "الدرعية", "الدوادمي", "المجمعة", "وادي الدواسر", "الزلفي"],
+        "منطقة مكة المكرمة": ["مكة المكرمة", "جدة", "الطائف", "رابغ", "القنفذة", "الليث"],
+        "المنطقة الشرقية": ["الدمام", "الخبر", "الظهران", "الأحساء", "الجبيل", "القطيف", "حفر الباطن"],
+        "منطقة المدينة المنورة": ["المدينة المنورة", "ينبع", "العلا", "بدر", "خيبر"],
+        "منطقة القصيم": ["بريدة", "عنيزة", "الرس", "البكيرية", "المذنب"],
+        "منطقة عسير": ["أبها", "خميس مشيط", "أحد رفيدة", "بيشة", "محايل عسير"]
+      }
+    }
+  };
 
   function getLoggedCustomer() {
     if (loggedCustomer) return loggedCustomer;
@@ -30,12 +110,14 @@
   async function initArtizCOD() {
     const rootEl = document.getElementById("artiz-cod-global-root") || document.getElementById("artiz-cod-form-wrapper");
     currentShop = rootEl?.dataset.shop || window.Shopify?.shop || window.location.hostname;
+    storeCurrency = window.Shopify?.currency?.active || "MAD";
 
-    // Load store configuration from Worker
+    // Load store configuration and shipping settings from Worker
     try {
       const res = await fetch(`${WORKER_URL}/public/form-config?shop=${encodeURIComponent(currentShop)}`);
       const json = await res.json();
       activeConfig = json.data?.formConfig || json.formConfig || getFallbackConfig();
+      activeShippingConfig = json.data?.shippingConfig || null;
     } catch (e) {
       console.warn("[Artiz COD] Using fallback config:", e);
       activeConfig = getFallbackConfig();
@@ -66,7 +148,7 @@
       directBuyTrigger: true,
       cartDrawerTrigger: true,
       requiredFields: { name: true, phone: true, city: true, address: true, note: false },
-      citiesList: ["الرياض", "جدة", "مكة المكرمة", "المدينة المنورة", "الدمام", "أخرى"]
+      citiesList: ["الدار البيضاء", "الرباط", "مراكش", "فاس", "طنجة", "أكادير", "الرياض", "جدة", "أخرى"]
     };
   }
 
@@ -74,7 +156,6 @@
   function setupProductPageTrigger() {
     if (!activeConfig.directBuyTrigger) return;
 
-    // Detect if we are on a product page
     const productForm = document.querySelector('form[action*="/cart/add"]');
     if (!productForm || document.getElementById("artiz-product-dual-actions")) return;
 
@@ -82,7 +163,6 @@
     container.id = "artiz-product-dual-actions";
     container.className = "artiz-dual-actions";
 
-    // Button 1: Add to Cart (Clean text, no emojis)
     const addCartBtn = document.createElement("button");
     addCartBtn.type = "button";
     addCartBtn.id = "artiz-product-add-cart-btn";
@@ -94,7 +174,6 @@
       await handleAddToCart(productForm, addCartBtn);
     });
 
-    // Button 2: Order Now (Exact text from dashboard config, no emojis)
     const buyNowBtn = document.createElement("button");
     buyNowBtn.type = "button";
     buyNowBtn.id = "artiz-direct-buy-btn";
@@ -109,74 +188,51 @@
     container.appendChild(addCartBtn);
     container.appendChild(buyNowBtn);
 
-    // Insert after main Add to cart / Buy Now button
     const submitBtn = productForm.querySelector('button[type="submit"], input[type="submit"]');
     if (submitBtn && submitBtn.parentNode) {
       submitBtn.parentNode.insertBefore(container, submitBtn.nextSibling);
     } else {
       productForm.appendChild(container);
     }
-
-    // Sticky buy bar for mobile if enabled
-    if (activeConfig.displayMode === "sticky_bar") {
-      injectStickyBar(productForm);
-    }
   }
 
-  // Handle Add To Cart
   async function handleAddToCart(productForm, btn) {
-    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
-    const variantId = variantInput ? variantInput.value : null;
-    const qtyInput = productForm.querySelector('input[name="quantity"]');
-    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+    const textSpan = btn.querySelector("#artiz-add-cart-text");
+    const origText = textSpan ? textSpan.textContent : "أضف إلى السلة";
 
-    if (!variantId) {
-      alert("يرجى اختيار مقاس أو خيارات المنتج أولاً.");
-      return;
-    }
-
-    const label = btn.querySelector("#artiz-add-cart-text");
+    if (textSpan) textSpan.textContent = "جاري الإضافة...";
     btn.disabled = true;
-    if (label) label.textContent = "جاري الإضافة...";
 
     try {
-      const res = await fetch("/cart/add.js", {
+      const formData = new FormData(productForm);
+      await fetch("/cart/add.js", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: [{ id: Number(variantId), quantity }]
-        })
+        body: formData
       });
 
-      if (!res.ok) throw new Error("تعذر إضافة المنتج للسلة");
-
-      btn.classList.add("artiz-added");
-      if (label) label.textContent = "✓ تمت الإضافة إلى السلة بنجاح!";
-
-      // Update cart bubble count if present
-      try {
-        const cartRes = await fetch("/cart.js");
-        const cartData = await cartRes.json();
-        document.querySelectorAll('.cart-count-bubble, [data-cart-count]').forEach(el => {
-          el.textContent = cartData.item_count;
-        });
-      } catch (_) {}
-
+      if (textSpan) textSpan.textContent = "تمت الإضافة بنجاح ✓";
       setTimeout(() => {
-        btn.classList.remove("artiz-added");
-        if (label) label.textContent = "أضف إلى السلة";
+        if (textSpan) textSpan.textContent = origText;
         btn.disabled = false;
-      }, 2500);
+      }, 1500);
 
-    } catch (err) {
-      alert(err.message || "حدث خطأ أثناء الإضافة للسلة");
-      if (label) label.textContent = "أضف إلى السلة";
+      const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
+      countBadges.forEach(b => {
+        const current = parseInt(b.textContent, 10) || 0;
+        b.textContent = current + 1;
+      });
+    } catch (e) {
+      alert("تعذر إضافة المنتج للسلة، يرجى المحاولة لاحقاً.");
+      if (textSpan) textSpan.textContent = origText;
       btn.disabled = false;
     }
   }
 
-  // Handle Smart Checkout (Current product + existing cart items if any)
   async function handleSmartCheckout(productForm) {
+    await handleDirectProductBuy(productForm);
+  }
+
+  async function handleDirectProductBuy(productForm) {
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
     const variantId = variantInput ? variantInput.value : null;
     const qtyInput = productForm.querySelector('input[name="quantity"]');
@@ -187,6 +243,7 @@
     if (variantId) {
       let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
       let price = 0;
+      let originalPrice = 0;
       let image = "";
       let variantTitle = "";
 
@@ -201,6 +258,7 @@
           const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
           if (variantObj) {
             price = variantObj.price / 100;
+            originalPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
             variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
             if (variantObj.featured_image?.src) {
               image = variantObj.featured_image.src;
@@ -216,6 +274,7 @@
         title,
         variantTitle,
         price,
+        originalPrice: originalPrice > price ? originalPrice : price,
         image,
         quantity
       };
@@ -225,24 +284,15 @@
     try {
       const cRes = await fetch("/cart.js");
       const cart = await cRes.json();
+      if (cart.currency) storeCurrency = cart.currency;
 
       if (cart.items && cart.items.length > 0) {
-        // Map cart items
-        orderItems = cart.items.map(item => ({
-          variantId: item.variant_id,
-          title: item.product_title || item.title,
-          variantTitle: item.variant_title || "",
-          price: item.price / 100,
-          image: item.image || item.featured_image?.url || "",
-          quantity: item.quantity
-        }));
+        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
 
-        // If current product is not already in cart, append it
         if (currentProduct && !orderItems.some(i => String(i.variantId) === String(currentProduct.variantId))) {
           orderItems.unshift(currentProduct);
         }
       } else if (currentProduct) {
-        // Cart is empty, use current product only
         orderItems = [currentProduct];
       }
     } catch (_) {
@@ -257,7 +307,7 @@
     openArtizModal();
   }
 
-  // 3. Setup Cart Page Trigger (ONLY on actual cart pages/drawers, NOT product pages)
+  // 3. Setup Cart Page Trigger
   function setupCartPageTrigger() {
     if (!activeConfig.cartDrawerTrigger) return;
     if (window.location.pathname.includes("/products/")) return;
@@ -285,32 +335,47 @@
     });
   }
 
+  function mapCartItemToOrderItem(item) {
+    const origPrice = (item.original_price || item.price) / 100;
+    const finalPrice = (item.final_price !== undefined ? item.final_price : item.price) / 100;
+    const discounts = item.line_level_discount_allocations || item.discounts || [];
+    const discountAmount = (item.original_line_price && item.final_line_price)
+      ? ((item.original_line_price - item.final_line_price) / 100)
+      : discounts.reduce((sum, d) => sum + (d.amount / 100), 0);
+    const discountTitle = discounts[0]?.discount_application?.title || discounts[0]?.title || "";
+
+    return {
+      variantId: item.variant_id,
+      title: item.product_title || item.title,
+      variantTitle: item.variant_title || "",
+      originalPrice: origPrice > finalPrice ? origPrice : finalPrice,
+      price: finalPrice, // The actual payable unit price!
+      discountAmount,
+      discountTitle,
+      image: item.image || item.featured_image?.url || "",
+      quantity: item.quantity
+    };
+  }
+
   async function handleCartCheckout() {
     try {
       const res = await fetch("/cart.js");
       const cart = await res.json();
+      if (cart.currency) storeCurrency = cart.currency;
 
       if (!cart.items || cart.items.length === 0) {
         alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
         return;
       }
 
-      orderItems = cart.items.map(item => ({
-        variantId: item.variant_id,
-        title: item.product_title || item.title,
-        variantTitle: item.variant_title || "",
-        price: item.price / 100,
-        image: item.image || item.featured_image?.url || "",
-        quantity: item.quantity
-      }));
-
+      orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
       openArtizModal();
     } catch (e) {
       alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
     }
   }
 
-  // 4. In-Modal Quantity Management (+ / - / delete)
+  // 4. In-Modal Quantity Management
   window.artizUpdateQty = function (index, delta) {
     if (!orderItems[index]) return;
     orderItems[index].quantity += delta;
@@ -335,12 +400,19 @@
     overlay.id = "artiz-modal-overlay";
     overlay.className = `artiz-modal-overlay ${isDrawer ? "artiz-drawer-mode" : ""}`;
 
+    const defaultCountry = "MA";
+    const countryData = REGIONAL_DATASETS[defaultCountry] || REGIONAL_DATASETS["MA"];
+    const regionNames = Object.keys(countryData.regions);
+
     overlay.innerHTML = `
       <div class="artiz-modal-container" id="artiz-modal-box">
         <div class="artiz-modal-header">
           <h3>${activeConfig.formTitle || "إتمام الطلب - الدفع عند الاستلام"}</h3>
           <button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>
         </div>
+
+        <!-- Free Shipping Progress Bar Container -->
+        <div id="artiz-free-shipping-container" style="padding: 0 24px;"></div>
 
         <!-- Order Items Section -->
         <div class="artiz-section-box" id="artiz-items-section">
@@ -353,6 +425,7 @@
             </div>
           ` : ""}
 
+          <!-- Summary Breakdown Box -->
           <div class="artiz-summary-lines" id="artiz-summary-lines"></div>
         </div>
 
@@ -385,23 +458,27 @@
           ${activeConfig.requiredFields?.phone !== false ? `
             <div class="artiz-field-group">
               <label>رقم الهاتف للتوصيل *</label>
-              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 05xxxxxxxx" value="${getLoggedCustomer()?.phone || ""}">
+              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 06xxxxxxxx أو 05xxxxxxxx" value="${getLoggedCustomer()?.phone || ""}">
             </div>
           ` : ""}
 
-          ${activeConfig.requiredFields?.city !== false ? `
+          <!-- Cascading Location Selector (Region -> City) -->
+          <div class="artiz-location-grid">
             <div class="artiz-field-group">
-              <label>المدينة / المنطقة *</label>
-              <select id="artiz-input-city" required>
-                <option value="">اختر المدينة...</option>
-                ${(activeConfig.citiesList || ["الرياض", "جدة", "مكة المكرمة", "الدمام", "أخرى"])
-                  .map(c => `<option value="${c}" ${getLoggedCustomer()?.city === c ? "selected" : ""}>${c}</option>`).join("")}
-                ${getLoggedCustomer()?.city && !(activeConfig.citiesList || []).includes(getLoggedCustomer().city) 
-                  ? `<option value="${getLoggedCustomer().city}" selected>${getLoggedCustomer().city}</option>` 
-                  : ""}
+              <label>الولاية / الجهة *</label>
+              <select id="artiz-input-region" required>
+                ${regionNames.map(r => `<option value="${r}">${r}</option>`).join("")}
+                <option value="other">أخرى / كتابة يدوية...</option>
               </select>
             </div>
-          ` : ""}
+
+            <div class="artiz-field-group">
+              <label>المدينة / البلدية *</label>
+              <select id="artiz-input-city" required>
+                <!-- Populated dynamically on region change -->
+              </select>
+            </div>
+          </div>
 
           ${activeConfig.requiredFields?.address !== false ? `
             <div class="artiz-field-group">
@@ -433,6 +510,21 @@
       if (e.target === overlay) closeArtizModal();
     });
 
+    // Cascading Region -> City change event
+    const regionSelect = document.getElementById("artiz-input-region");
+    const citySelect = document.getElementById("artiz-input-city");
+    if (regionSelect && citySelect) {
+      regionSelect.addEventListener("change", function () {
+        populateCityDropdown(regionSelect.value);
+        renderOrderItemsList();
+      });
+      citySelect.addEventListener("change", function () {
+        renderOrderItemsList();
+      });
+      // Initial population
+      populateCityDropdown(regionSelect.value);
+    }
+
     // Coupon event
     const couponBtn = document.getElementById("artiz-apply-coupon");
     if (couponBtn) {
@@ -443,32 +535,26 @@
     document.getElementById("artiz-checkout-form").addEventListener("submit", handleSubmitOrder);
   }
 
+  function populateCityDropdown(selectedRegion) {
+    const citySelect = document.getElementById("artiz-input-city");
+    if (!citySelect) return;
+
+    const countryData = REGIONAL_DATASETS["MA"];
+    const cities = countryData.regions[selectedRegion] || activeConfig.citiesList || ["الدار البيضاء", "الرباط", "مراكش", "أخرى"];
+
+    citySelect.innerHTML = cities.map(c => `<option value="${c}">${c}</option>`).join("");
+    citySelect.innerHTML += `<option value="other">مدينة أخرى...</option>`;
+
+    // If customer had an existing city, pre-select it
+    const custCity = getLoggedCustomer()?.city;
+    if (custCity) {
+      const match = Array.from(citySelect.options).find(o => o.value === custCity);
+      if (match) citySelect.value = custCity;
+    }
+  }
+
   function openArtizModal() {
     renderOrderItemsList();
-    const cust = getLoggedCustomer();
-    if (cust) {
-      const nameInput = document.getElementById("artiz-input-name");
-      const phoneInput = document.getElementById("artiz-input-phone");
-      const addressInput = document.getElementById("artiz-input-address");
-      const citySelect = document.getElementById("artiz-input-city");
-      if (nameInput && !nameInput.value && cust.name) nameInput.value = cust.name;
-      if (phoneInput && !phoneInput.value && cust.phone) phoneInput.value = cust.phone;
-      if (addressInput && !addressInput.value && cust.address) addressInput.value = cust.address;
-      if (citySelect && !citySelect.value && cust.city) {
-        let found = false;
-        for (let i = 0; i < citySelect.options.length; i++) {
-          if (citySelect.options[i].value === cust.city) {
-            citySelect.selectedIndex = i;
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          const opt = new Option(cust.city, cust.city, true, true);
-          citySelect.add(opt);
-        }
-      }
-    }
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
   }
@@ -494,65 +580,186 @@
   function renderOrderItemsList() {
     const container = document.getElementById("artiz-items-render-list");
     const summaryLines = document.getElementById("artiz-summary-lines");
+    const freeShippingContainer = document.getElementById("artiz-free-shipping-container");
     if (!container || !summaryLines) return;
 
     if (orderItems.length === 0) {
       container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:14px; margin:20px 0;">السلة فارغة</p>`;
       summaryLines.innerHTML = "";
+      if (freeShippingContainer) freeShippingContainer.innerHTML = "";
       document.getElementById("artiz-submit-order-btn").disabled = true;
       return;
     }
 
     document.getElementById("artiz-submit-order-btn").disabled = false;
 
-    // Render items
-    container.innerHTML = orderItems.map((item, idx) => `
-      <div class="artiz-item-card">
-        ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
-        <div class="artiz-item-info">
-          <p class="artiz-item-title">${item.title}</p>
-          ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
-          <p class="artiz-item-price">${(item.price * item.quantity).toFixed(2)}</p>
-        </div>
-        <div class="artiz-stepper">
-          <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
-          <span>${item.quantity}</span>
-          <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
-        </div>
-        <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>
-      </div>
-    `).join("");
+    // Render items with compare-at price & discount badges
+    container.innerHTML = orderItems.map((item, idx) => {
+      const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+      const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
 
-    // Calculate subtotal
+      return `
+        <div class="artiz-item-card">
+          ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
+          <div class="artiz-item-info">
+            <p class="artiz-item-title">${item.title}</p>
+            ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
+            <div class="artiz-price-stack">
+              <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+              ${hasDiscount ? `
+                <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                <span class="artiz-discount-tag">خصم ${discountPercent}% ${item.discountTitle ? `(${item.discountTitle})` : ''}</span>
+              ` : ""}
+            </div>
+          </div>
+          <div class="artiz-stepper">
+            <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
+            <span>${item.quantity}</span>
+            <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
+          </div>
+          <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>
+        </div>
+      `;
+    }).join("");
+
+    // Calculate Subtotals & Savings
     const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const shipping = 0; // Can be configured
-    let discountVal = 0;
-    if (appliedDiscount) {
-      discountVal = appliedDiscount.type === "percentage" ? (subtotal * appliedDiscount.amount / 100) : appliedDiscount.amount;
-    }
-    const grandTotal = Math.max(0, subtotal - discountVal + shipping);
+    const originalSubtotal = orderItems.reduce((acc, item) => acc + ((item.originalPrice || item.price) * item.quantity), 0);
+    const catalogSavings = Math.max(0, originalSubtotal - subtotal);
 
+    let couponDiscount = 0;
+    if (appliedDiscount) {
+      couponDiscount = appliedDiscount.type === "percentage" ? (subtotal * appliedDiscount.amount / 100) : appliedDiscount.amount;
+    }
+    const totalSavings = catalogSavings + couponDiscount;
+
+    // Shipping Calculation
+    const shippingGen = activeShippingConfig?.general || {
+      enabled: true,
+      defaultTitle: "توصيل سريع لجميع المدن",
+      defaultRate: 30,
+      freeShippingEnabled: true,
+      freeShippingThreshold: 90800,
+      freeShippingText: "مجاناً (توصيل سريع)",
+      allowMultipleMethods: true,
+      defaultMethods: [
+        { id: "home", title: "توصيل للمنزل (سريع)", price: 30 },
+        { id: "desk", title: "استلام من مكتب التوزيع (Stop Desk)", price: 20 }
+      ]
+    };
+
+    const threshold = Number(shippingGen.freeShippingThreshold || 0);
+    const isFreeShipping = shippingGen.freeShippingEnabled && threshold > 0 && subtotal >= threshold;
+
+    let shippingCost = 0;
+    let shippingTitle = shippingGen.defaultTitle || "توصيل سريع لجميع المدن";
+    let shippingMethodsHtml = "";
+
+    if (isFreeShipping) {
+      shippingCost = 0;
+      shippingTitle = shippingGen.freeShippingText || "مجاناً (توصيل مجاني)";
+      currentCalculatedShipping = { cost: 0, title: shippingTitle, isFree: true };
+
+      if (freeShippingContainer) {
+        freeShippingContainer.innerHTML = `
+          <div class="artiz-free-shipping-bar artiz-free-achieved">
+            <span class="artiz-shipping-icon">🎉</span>
+            <div class="artiz-shipping-msg">
+              <strong>مبروك!</strong> لقد حصلت على <strong>توصيل مجاني</strong> لطلبك!
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      // Free Shipping Progress Bar
+      if (freeShippingContainer && threshold > 0) {
+        const remaining = Math.max(0, threshold - subtotal);
+        const percent = Math.min(100, Math.round((subtotal / threshold) * 100));
+        freeShippingContainer.innerHTML = `
+          <div class="artiz-free-shipping-bar">
+            <div class="artiz-shipping-msg">
+              أضف بقيمة <strong>${remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</strong> إضافية للحصول على <strong>شحن مجاني!</strong>
+            </div>
+            <div class="artiz-progress-track">
+              <div class="artiz-progress-fill" style="width: ${percent}%;"></div>
+            </div>
+          </div>
+        `;
+      } else if (freeShippingContainer) {
+        freeShippingContainer.innerHTML = "";
+      }
+
+      // Methods options (Home vs Stop Desk)
+      const methods = shippingGen.defaultMethods || [
+        { id: "home", title: shippingGen.defaultTitle || "توصيل سريع للمنزل", price: Number(shippingGen.defaultRate || 30) }
+      ];
+
+      if (!selectedShippingMethod || !methods.some(m => m.id === selectedShippingMethod)) {
+        selectedShippingMethod = methods[0]?.id || "home";
+      }
+
+      const activeMethodObj = methods.find(m => m.id === selectedShippingMethod) || methods[0];
+      shippingCost = activeMethodObj.price;
+      shippingTitle = activeMethodObj.title;
+      currentCalculatedShipping = { cost: shippingCost, title: shippingTitle, isFree: false };
+
+      if (methods.length > 1) {
+        shippingMethodsHtml = `
+          <div class="artiz-shipping-methods-box">
+            <span class="artiz-shipping-methods-header">طريقة التوصيل:</span>
+            ${methods.map(m => `
+              <label class="artiz-shipping-radio-item ${selectedShippingMethod === m.id ? 'artiz-radio-selected' : ''}">
+                <div>
+                  <input type="radio" name="artiz_shipping_method" value="${m.id}" ${selectedShippingMethod === m.id ? 'checked' : ''} onchange="window.artizSelectShippingMethod('${m.id}')">
+                  <span>${m.title}</span>
+                </div>
+                <strong>${m.price.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}</strong>
+              </label>
+            `).join("")}
+          </div>
+        `;
+      }
+    }
+
+    const grandTotal = Math.max(0, subtotal - couponDiscount + shippingCost);
+
+    // Render Order Summary Box
     summaryLines.innerHTML = `
       <div class="artiz-summary-row">
         <span>المجموع الفرعي:</span>
-        <span>${subtotal.toFixed(2)}</span>
+        <span class="artiz-subtotal-val">${(originalSubtotal > subtotal ? originalSubtotal : subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
       </div>
-      <div class="artiz-summary-row">
-        <span>الشحن والتوصيل:</span>
-        <span style="color:#008060; font-weight:600;">مجاناً (الدفع عند الاستلام)</span>
-      </div>
-      ${discountVal > 0 ? `
-        <div class="artiz-summary-row" style="color:#16a34a; font-weight:600;">
-          <span>الخصم (${appliedDiscount.code}):</span>
-          <span>-${discountVal.toFixed(2)}</span>
+
+      ${totalSavings > 0 ? `
+        <div class="artiz-summary-row artiz-savings-row">
+          <span>إجمالي التوفير والخصم:</span>
+          <span class="artiz-savings-badge">وفرت -${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
         </div>
       ` : ""}
+
+      <div class="artiz-summary-row artiz-shipping-row">
+        <div class="artiz-shipping-label-group">
+          <span>الشحن والتوصيل:</span>
+          <small class="artiz-shipping-title">${shippingTitle}</small>
+        </div>
+        <span class="artiz-shipping-cost ${shippingCost === 0 ? 'artiz-text-free' : ''}">
+          ${shippingCost === 0 ? 'مجاناً' : `${shippingCost.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}`}
+        </span>
+      </div>
+
+      ${shippingMethodsHtml}
+
       <div class="artiz-summary-row artiz-total-row">
-        <span>المجموع الكلي:</span>
-        <span>${grandTotal.toFixed(2)}</span>
+        <span>المجموع الكلي للدفع:</span>
+        <span class="artiz-total-val">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
       </div>
     `;
   }
+
+  window.artizSelectShippingMethod = function (methodId) {
+    selectedShippingMethod = methodId;
+    renderOrderItemsList();
+  };
 
   // 7. Coupon Handler
   function handleApplyCoupon() {
@@ -560,28 +767,24 @@
     const code = input ? input.value.trim().toUpperCase() : "";
     if (!code) return;
 
-    // Apply coupon
     appliedDiscount = {
       code,
       type: "percentage",
-      amount: 10 // Example standard 10% coupon validation
+      amount: 10
     };
     alert(`تم تطبيق كود الخصم بنجاح: ${code}`);
     renderOrderItemsList();
   }
 
-  // 8. Capture Affiliate Attribution (GoAffPro, BixGrow, UpPromote, ref cookies)
+  // 8. Capture Affiliate Attribution
   function getAffiliateTrackingData() {
     const affiliate = {};
     const urlParams = new URLSearchParams(window.location.search);
-
-    // Common affiliate params
     const keys = ["ref", "sca_ref", "bixgrow_ref", "bix_aff", "goaffpro_affiliate", "affiliate_id", "via", "partner"];
     keys.forEach(k => {
       if (urlParams.get(k)) affiliate[k] = urlParams.get(k);
     });
 
-    // Check cookies
     const cookies = document.cookie.split(";");
     cookies.forEach(c => {
       const [k, v] = c.trim().split("=");
@@ -606,7 +809,8 @@
 
     const name = document.getElementById("artiz-input-name")?.value.trim() || "عميل المتجر";
     const phone = document.getElementById("artiz-input-phone")?.value.trim() || "";
-    const city = document.getElementById("artiz-input-city")?.value.trim() || "الرياض";
+    const region = document.getElementById("artiz-input-region")?.value.trim() || "";
+    const city = document.getElementById("artiz-input-city")?.value.trim() || "الدار البيضاء";
     const address = document.getElementById("artiz-input-address")?.value.trim() || "العنوان بالمتجر";
     const note = document.getElementById("artiz-input-note")?.value.trim() || "";
 
@@ -634,15 +838,20 @@
           email: cust?.email || undefined,
           name,
           phone,
+          country: "Morocco",
+          region,
           city,
-          address,
+          address: `${region ? region + ' - ' : ''}${city ? city + ' - ' : ''}${address}`,
           note
         },
         items: orderItems.map(item => ({
           variantId: item.variantId,
-          quantity: item.quantity
+          quantity: item.quantity,
+          price: item.price, // Exact discounted price!
+          originalPrice: item.originalPrice
         })),
-        shippingPrice: 0,
+        shippingPrice: currentCalculatedShipping.cost,
+        shippingTitle: currentCalculatedShipping.title,
         discountCode: appliedDiscount?.code || "",
         affiliate: affiliateData
       };
@@ -656,52 +865,23 @@
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        throw new Error(data.error || "فشل تسجيل الطلب");
+        throw new Error(data.error || "فشل تسجيل الطلب، يرجى المحاولة لاحقاً.");
       }
 
-      // Clear Shopify cart if any items were from cart
+      // Order created successfully! Clear cart
       try {
         await fetch("/cart/clear.js", { method: "POST" });
       } catch (_) {}
 
-      // Redirect to Thank You page
-      const thankYouUrl = data.data?.thankYouUrl || data.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId || data.orderId}&shop=${currentShop}`;
+      // Redirect to Shopify Order Confirmation Thank You Page
+      const thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
       window.location.href = thankYouUrl;
-
     } catch (err) {
-      console.error("[Artiz COD] Checkout Error:", err);
-      alert(`حدث خطأ أثناء تأكيد الطلب: ${err.message}`);
+      alert(`خطأ: ${err.message}`);
       if (submitBtn) submitBtn.disabled = false;
       if (spinner) spinner.style.display = "none";
       if (label) label.textContent = "تأكيد الطلب الآن (الدفع عند الاستلام)";
     }
-  }
-
-  // 10. Sticky Bar on Mobile
-  function injectStickyBar(productForm) {
-    if (document.getElementById("artiz-sticky-buy-bar")) return;
-
-    const title = document.querySelector("h1")?.innerText?.trim() || "اشتري الآن";
-    const priceEl = document.querySelector(".price, .product__price, [data-product-price]");
-    const priceText = priceEl ? priceEl.innerText.trim() : "";
-
-    const bar = document.createElement("div");
-    bar.id = "artiz-sticky-buy-bar";
-    bar.className = "artiz-sticky-bar";
-    bar.innerHTML = `
-      <div class="artiz-sticky-info">
-        <span class="artiz-sticky-title">${title}</span>
-        <span class="artiz-sticky-price">${priceText}</span>
-      </div>
-      <button type="button" class="artiz-cod-trigger-btn" style="width: auto; padding: 10px 18px; margin: 0; font-size: 14px;" id="artiz-sticky-action-btn">
-        طلب سريع (COD)
-      </button>
-    `;
-
-    document.body.appendChild(bar);
-    document.getElementById("artiz-sticky-action-btn").addEventListener("click", () => {
-      handleDirectProductBuy(productForm);
-    });
   }
 
 })();

@@ -278,10 +278,34 @@
   margin: 0 0 6px 0;
 }
 
+.artiz-price-stack {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .artiz-item-price {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--artiz-primary);
+}
+
+.artiz-item-compare-price {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.artiz-discount-tag {
+  font-size: 10px;
+  font-weight: 700;
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Stepper Quantity (+ / -) */
@@ -360,31 +384,194 @@
 }
 
 /* ============================================================
-   8. TOTAL BREAKDOWN
+   8. FREE SHIPPING PROGRESS BAR & TOTAL BREAKDOWN
    ============================================================ */
-.artiz-summary-lines {
+.artiz-free-shipping-bar {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.artiz-free-shipping-bar.artiz-free-achieved {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.artiz-shipping-icon {
+  font-size: 20px;
+}
+
+.artiz-shipping-msg {
   font-size: 13px;
-  color: var(--artiz-muted);
+  color: #166534;
+  line-height: 1.4;
+}
+
+.artiz-shipping-msg strong {
+  font-weight: 800;
+  color: #14532d;
+}
+
+.artiz-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #dcfce7;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.artiz-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* Summary Card */
+.artiz-summary-lines {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .artiz-summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 13px;
+  color: #475569;
+}
+
+.artiz-subtotal-val {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.artiz-savings-row {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.artiz-savings-badge {
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.artiz-shipping-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artiz-shipping-title {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.artiz-shipping-cost {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.artiz-shipping-cost.artiz-text-free {
+  color: #059669;
+  font-weight: 800;
+}
+
+/* Shipping Methods Selector */
+.artiz-shipping-methods-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.artiz-shipping-methods-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 2px;
+}
+
+.artiz-shipping-radio-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.artiz-shipping-radio-item:hover {
+  background: #f1f5f9;
+}
+
+.artiz-shipping-radio-item.artiz-radio-selected {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.artiz-shipping-radio-item input[type="radio"] {
+  margin-left: 8px;
+  accent-color: var(--artiz-primary);
+  cursor: pointer;
 }
 
 .artiz-summary-row.artiz-total-row {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
-  color: var(--artiz-text);
-  border-top: 1px dashed var(--artiz-border);
-  padding-top: 8px;
+  color: #0f172a;
+  border-top: 1.5px dashed #cbd5e1;
+  padding-top: 12px;
   margin-top: 4px;
 }
+
+.artiz-total-val {
+  color: var(--artiz-primary);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* Cascading Location Grid */
+.artiz-location-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .artiz-location-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 
 /* ============================================================
    9. CUSTOMER FORM FIELDS
