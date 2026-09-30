@@ -287,8 +287,8 @@
     if (!variantId) return;
 
     let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
-    let price = 0;
-    let originalPrice = 0;
+    let catalogPrice = 0;
+    let catalogComparePrice = 0;
     let image = "";
     let variantTitle = "";
 
@@ -302,8 +302,8 @@
         image = pData.featured_image || "";
         const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
         if (variantObj) {
-          price = variantObj.price / 100;
-          originalPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
+          catalogPrice = variantObj.price / 100;
+          catalogComparePrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : catalogPrice;
           variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
           if (variantObj.featured_image?.src) {
             image = variantObj.featured_image.src;
@@ -314,31 +314,63 @@
       console.warn("Could not fetch product details", e);
     }
 
-    const currentProduct = {
-      variantId,
-      title,
-      variantTitle,
-      price,
-      originalPrice: originalPrice > price ? originalPrice : price,
-      unitDiscount: 0,
-      image,
-      quantity,
-      isCurrentProduct: true
-    };
-
-    // Load active cart items
+    // Inspect Active Cart Items
     let otherCartItems = [];
+    let matchingCartItem = null;
+
     try {
       const cRes = await fetch("/cart.js");
       const cart = await cRes.json();
       if (cart.currency) storeCurrency = cart.currency;
 
       if (cart.items && cart.items.length > 0) {
+        matchingCartItem = cart.items.find(item => String(item.variant_id) === String(variantId));
         otherCartItems = cart.items
           .filter(item => String(item.variant_id) !== String(variantId))
           .map(item => mapCartItemToOrderItem(item));
       }
     } catch (_) {}
+
+    // Build Current Product with full cart discount awareness
+    let currentProduct;
+    if (matchingCartItem) {
+      const mapped = mapCartItemToOrderItem(matchingCartItem);
+      const effectiveOriginal = catalogComparePrice > mapped.price 
+        ? catalogComparePrice 
+        : (mapped.originalPrice > mapped.price ? mapped.originalPrice : catalogPrice);
+
+      const hasAutoDiscount = mapped.unitDiscount > 0 || (catalogPrice > mapped.price);
+      const autoDiscountPercent = hasAutoDiscount && catalogPrice > 0
+        ? Math.round(((catalogPrice - mapped.price) / catalogPrice) * 100)
+        : (mapped.cartDiscountPercent || 0);
+
+      currentProduct = {
+        ...mapped,
+        isCurrentProduct: true,
+        catalogPrice,
+        catalogComparePrice,
+        originalPrice: effectiveOriginal,
+        autoDiscountPercent,
+        hasAutoDiscount,
+        image: mapped.image || image
+      };
+    } else {
+      currentProduct = {
+        variantId,
+        title,
+        variantTitle,
+        price: catalogPrice,
+        catalogPrice,
+        catalogComparePrice,
+        originalPrice: catalogComparePrice > catalogPrice ? catalogComparePrice : catalogPrice,
+        unitDiscount: 0,
+        autoDiscountPercent: 0,
+        hasAutoDiscount: false,
+        image,
+        quantity,
+        isCurrentProduct: true
+      };
+    }
 
     orderItems = [currentProduct, ...otherCartItems];
     renderOrderItemsList();
@@ -493,6 +525,9 @@
       ? ((item.original_line_price - item.final_line_price) / 100)
       : discounts.reduce((sum, d) => sum + (d.amount / 100), 0);
     const discountTitle = discounts[0]?.discount_application?.title || discounts[0]?.title || "تخفيض السلة";
+    const cartDiscountPercent = origPrice > finalPrice 
+      ? Math.round(((origPrice - finalPrice) / origPrice) * 100) 
+      : 0;
 
     return {
       variantId: item.variant_id,
@@ -501,11 +536,41 @@
       originalPrice: origPrice > finalPrice ? origPrice : finalPrice,
       price: finalPrice, // The actual payable unit price!
       unitDiscount: Number(unitDiscount.toFixed(2)),
+      cartDiscountPercent,
       discountAmount,
       discountTitle,
       image: item.image || item.featured_image?.url || "",
       quantity: item.quantity
     };
+  }
+
+  function syncOrderItemsFromCart(cart) {
+    if (!cart || !cart.items) return;
+    let changed = false;
+
+    orderItems.forEach(item => {
+      const match = cart.items.find(ci => String(ci.variant_id) === String(item.variantId));
+      if (match) {
+        const mapped = mapCartItemToOrderItem(match);
+        if (item.price !== mapped.price || item.unitDiscount !== mapped.unitDiscount || item.quantity !== match.quantity) {
+          item.price = mapped.price;
+          item.unitDiscount = mapped.unitDiscount;
+          item.discountTitle = mapped.discountTitle;
+          item.cartDiscountPercent = mapped.cartDiscountPercent;
+          if (item.isCurrentProduct && item.catalogPrice) {
+            item.hasAutoDiscount = item.catalogPrice > mapped.price;
+            item.autoDiscountPercent = item.hasAutoDiscount 
+              ? Math.round(((item.catalogPrice - mapped.price) / item.catalogPrice) * 100)
+              : 0;
+          }
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      renderOrderItemsList();
+    }
   }
 
   async function handleCartCheckout() {
@@ -532,11 +597,15 @@
     const item = orderItems[index];
     item.quantity += delta;
     if (item.quantity <= 0) {
+      if (item.isCurrentProduct) {
+        item.quantity = 1;
+        return;
+      }
       orderItems.splice(index, 1);
     }
     renderOrderItemsList();
 
-    // Background sync to Shopify cart if this was a cart item
+    // Background sync to Shopify cart
     if (item && item.variantId) {
       const rawVariantId = String(item.variantId).replace("gid://shopify/ProductVariant/", "");
       fetch("/cart/change.js", {
@@ -547,10 +616,26 @@
           quantity: item.quantity <= 0 ? 0 : item.quantity
         })
       }).then(r => r.json()).then(cart => {
+        const isInCart = cart.items && cart.items.some(ci => String(ci.variant_id) === String(rawVariantId));
+        if (!isInCart && item.quantity > 0) {
+          // If not in cart, add it!
+          return fetch("/cart/add.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: rawVariantId, quantity: item.quantity })
+          }).then(r => r.json()).then(async () => {
+            const cRes = await fetch("/cart.js");
+            return await cRes.json();
+          });
+        }
+        return cart;
+      }).then(cart => {
+        if (!cart) return;
         const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
         countBadges.forEach(b => {
           b.textContent = cart.item_count || 0;
         });
+        syncOrderItemsFromCart(cart);
       }).catch(() => {});
     }
   };
@@ -576,6 +661,7 @@
         countBadges.forEach(b => {
           b.textContent = cart.item_count || 0;
         });
+        syncOrderItemsFromCart(cart);
       }).catch(() => {});
     }
   };
@@ -830,13 +916,17 @@
       const currentIdx = orderItems.indexOf(currentProduct);
       const hasDiscount = currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price;
       const discountPercent = hasDiscount ? Math.round((1 - (currentProduct.price / currentProduct.originalPrice)) * 100) : 0;
+      const autoDiscPercent = currentProduct.autoDiscountPercent || currentProduct.cartDiscountPercent || (currentProduct.unitDiscount > 0 && currentProduct.originalPrice > 0 ? Math.round((currentProduct.unitDiscount / currentProduct.originalPrice) * 100) : 0);
       const otherTotal = otherItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
       container.innerHTML = `
         <div class="artiz-item-card">
           ${currentProduct.image ? `<img src="${currentProduct.image}" alt="${currentProduct.title}" class="artiz-item-thumb">` : ""}
           <div class="artiz-item-info">
-            <p class="artiz-item-title">${currentProduct.title}</p>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+              <p class="artiz-item-title" style="margin:0;">${currentProduct.title}</p>
+              ${autoDiscPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoDiscPercent}%</span>` : ""}
+            </div>
             ${currentProduct.variantTitle ? `<p class="artiz-item-variant">${currentProduct.variantTitle}</p>` : ""}
             <div class="artiz-price-stack">
               <span class="artiz-item-price">${(currentProduct.price * currentProduct.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
@@ -856,11 +946,11 @@
 
         <div class="artiz-other-cart-section">
           <button type="button" class="artiz-other-cart-toggle" onclick="window.artizToggleOtherCartItems()">
-            <div class="artiz-cart-toggle-left">
-              <span class="artiz-cart-badge-icon">🛒</span>
-              <span>منتجات أخرى في سلتك (${otherItems.length})</span>
-            </div>
             <div class="artiz-cart-toggle-right">
+              <span class="artiz-cart-badge-icon">🛒</span>
+              <strong class="artiz-cart-toggle-label">منتجات أخرى في سلتك (${otherItems.length})</strong>
+            </div>
+            <div class="artiz-cart-toggle-left">
               <span class="artiz-other-cart-sum">${otherTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}</span>
               <span class="artiz-other-cart-chevron">${showOtherCartItems ? '▲ إخفاء' : '▼ إظهار وتعديل'}</span>
             </div>
@@ -871,18 +961,21 @@
               const idx = orderItems.indexOf(item);
               const itemDiscount = item.originalPrice && item.originalPrice > item.price;
               const itemDiscPercent = itemDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+              const itemAutoPercent = item.cartDiscountPercent || itemDiscPercent;
 
               return `
                 <div class="artiz-item-card artiz-sub-item-card">
                   ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
                   <div class="artiz-item-info">
-                    <p class="artiz-item-title">${item.title}</p>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+                      <p class="artiz-item-title" style="margin:0;">${item.title}</p>
+                      ${itemAutoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${itemAutoPercent}%</span>` : ""}
+                    </div>
                     ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
                     <div class="artiz-price-stack">
                       <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
                       ${itemDiscount ? `
                         <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
-                        <span class="artiz-discount-tag">خصم ${itemDiscPercent}%</span>
                       ` : ""}
                     </div>
                   </div>
@@ -902,18 +995,22 @@
       container.innerHTML = orderItems.map((item, idx) => {
         const hasDiscount = item.originalPrice && item.originalPrice > item.price;
         const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+        const autoPercent = item.cartDiscountPercent || (item.unitDiscount > 0 && item.originalPrice > 0 ? Math.round((item.unitDiscount / item.originalPrice) * 100) : 0);
 
         return `
           <div class="artiz-item-card">
             ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
             <div class="artiz-item-info">
-              <p class="artiz-item-title">${item.title}</p>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
+                <p class="artiz-item-title" style="margin:0;">${item.title}</p>
+                ${autoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoPercent}%</span>` : ""}
+              </div>
               ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
               <div class="artiz-price-stack">
                 <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
                 ${hasDiscount ? `
                   <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
-                  <span class="artiz-discount-tag">خصم ${discountPercent}% ${item.discountTitle ? `(${item.discountTitle})` : ''}</span>
+                  <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
                 ` : ""}
               </div>
             </div>
