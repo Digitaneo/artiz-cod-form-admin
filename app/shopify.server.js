@@ -23,7 +23,7 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
 
   future: {
-    expiringOfflineAccessTokens: true,
+    expiringOfflineAccessTokens: false,
   },
 
   ...(process.env.SHOP_CUSTOM_DOMAIN

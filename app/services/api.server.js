@@ -88,6 +88,9 @@ export async function registerShopWithWorker(session) {
       method: "POST",
       body: JSON.stringify({
         accessToken: session.accessToken,
+        refreshToken: session.refreshToken || undefined,
+        clientId: process.env.SHOPIFY_API_KEY || undefined,
+        clientSecret: process.env.SHOPIFY_API_SECRET || undefined,
       }),
     });
   } catch (err) {
