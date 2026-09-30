@@ -14,7 +14,8 @@ import {
   Checkbox,
   Banner,
   Box,
-  Grid
+  Grid,
+  Select
 } from "@shopify/polaris";
 
 export async function loader({ request }) {
@@ -92,9 +93,10 @@ export default function FormBuilderPage() {
   const [reqCity, setReqCity] = useState(config.requiredFields?.city !== false);
   const [reqAddress, setReqAddress] = useState(config.requiredFields?.address !== false);
   const [reqNote, setReqNote] = useState(Boolean(config.requiredFields?.note));
+  const [addressMode, setAddressMode] = useState(config.addressMode || "standard");
 
   const [citiesList, setCitiesList] = useState(
-    Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الرياض, جدة, مكة المكرمة, المدينة المنورة, الدمام, أخرى")
+    Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, مكناس, وجدة, أخرى")
   );
 
   const handleSave = () => {
@@ -108,6 +110,7 @@ export default function FormBuilderPage() {
       enableCartSummary,
       directBuyTrigger,
       cartDrawerTrigger,
+      addressMode,
       requiredFields: {
         name: reqName,
         phone: reqPhone,
@@ -253,11 +256,27 @@ export default function FormBuilderPage() {
 
           {/* 2. Customer Fields Config */}
           <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">2. حقول بيانات العميل والشحن (Customer Fields)</Text>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">2. حقول بيانات العميل والشحن (Customer Fields & Address Mode)</Text>
               <Text as="p" tone="subdued">
-                حدد الحقول التي تطلبها من العميل عند تأكيد طلب الدفع عند الاستلام:
+                حدد الحقول المطلوبة من العميل ونمط إدخال العنوان الأنسب لسوقك المستهدف:
               </Text>
+
+              <Select
+                label="نمط إدخال العنوان واختيار المدينة (Address Input Mode)"
+                options={[
+                  { label: "نمط كلاسيكي عادي: قائمة المدن المحددة + كتابة العنوان يدوياً (المغرب / المفضل للأغلبية)", value: "standard" },
+                  { label: "قوائم منسدلة متتالية: الولاية / الجهة ──► المدينة / البلدية (الجزائر / الـ 58 ولاية)", value: "cascading" }
+                ]}
+                value={addressMode}
+                onChange={setAddressMode}
+                helpText={
+                  addressMode === "standard"
+                    ? "العميل يختار مدينته مباشرة من قائمتك أدناه، ثم يكتب عنوانه بالتفصيل في خانة العنوان بحرية."
+                    : "العميل يختار ولايته أولاً ثم تظهر له بلديات ومدن ولايته تلقائياً."
+                }
+              />
+
               <InlineStack gap="400">
                 <Checkbox label="الاسم الكامل (Full Name)" checked={reqName} onChange={setReqName} />
                 <Checkbox label="رقم الهاتف (Phone Number)" checked={reqPhone} onChange={setReqPhone} />
@@ -265,15 +284,19 @@ export default function FormBuilderPage() {
                 <Checkbox label="العنوان التفصيلي (Detailed Address)" checked={reqAddress} onChange={setReqAddress} />
                 <Checkbox label="ملاحظات التوصيل (Delivery Note)" checked={reqNote} onChange={setReqNote} />
               </InlineStack>
-              <Box paddingBlockStart="200">
-                <TextField
-                  label="قائمة المدن المدعومة (افصل بينها بفاصلة ,)"
-                  value={citiesList}
-                  onChange={setCitiesList}
-                  autoComplete="off"
-                  helpText="ستظهر هذه المدن كخيارات سريعة للعميل لتسهيل وتسريع عملية الطلب."
-                />
-              </Box>
+
+              {addressMode === "standard" && (
+                <Box paddingBlockStart="200">
+                  <TextField
+                    label="قائمة المدن المدعومة (افصل بينها بفاصلة ,)"
+                    value={citiesList}
+                    onChange={setCitiesList}
+                    autoComplete="off"
+                    multiline={3}
+                    helpText="هذه المدن ستظهر للعميل في القائمة المنسدلة لاختيار مدينته بكل سهولة وسرعة."
+                  />
+                </Box>
+              )}
             </BlockStack>
           </Card>
 

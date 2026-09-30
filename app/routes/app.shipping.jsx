@@ -298,18 +298,61 @@ export default function ShippingManagerPage() {
           ]}
         >
           <Modal.Section>
-            <BlockStack gap="300">
+            <BlockStack gap="400">
               <Text as="p">
-                الصق محتوى ملف الـ CSV لأسعار التوصيل أدناه. يجب أن يحتوي الملف على الأعمدة التالية كالمثال المعتمد:
+                يمكنك تحميل أو تطبيق نماذج جاهزة لأسعار التوصيل بنقرة واحدة، أو لصق محتوى ملف CSV الخاص بشركات التوصيل لديك:
               </Text>
-              <Text as="pre" variant="bodySm" tone="subdued">
-                {`Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
-MA,Casablanca-Settat,Casablanca,,rate,25,
-MA,Rabat-Sale-Kenitra,Rabat,,rate,30,
-DZ,16 Alger,Bab El Oued,,rate,,Home:40|Desk:25`}
-              </Text>
+
+              <InlineStack gap="300">
+                <Button
+                  size="slim"
+                  onClick={() => {
+                    setCsvText(`Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
+MA,Casablanca-Settat,الدار البيضاء,,rate,20,توصيل سريع:20|استلام من المكتب:15
+MA,Casablanca-Settat,المحمدية,,rate,25,توصيل للمنزل:25
+MA,Casablanca-Settat,سطات,,rate,30,توصيل للمنزل:30
+MA,Casablanca-Settat,الجديدة,,rate,30,توصيل للمنزل:30
+MA,Rabat-Sale-Kenitra,الرباط,,rate,25,توصيل سريع:25|استلام من المكتب:20
+MA,Rabat-Sale-Kenitra,سلا,,rate,25,توصيل للمنزل:25
+MA,Rabat-Sale-Kenitra,القنيطرة,,rate,30,توصيل للمنزل:30
+MA,Marrakech-Safi,مراكش,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Tanger-Tetouan-Al Hoceima,طنجة,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Fes-Meknes,فاس,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Souss-Massa,أكادير,,rate,35,توصيل سريع:35|استلام من المكتب:25
+MA,Oriental,وجدة,,rate,35,توصيل للمنزل:35
+MA,Sahara,العيون,,rate,45,توصيل للمنزل:45`);
+                  }}
+                >
+                  🇲🇦 تحميل نموذج المغرب (Morocco Preset)
+                </Button>
+
+                <Button
+                  size="slim"
+                  onClick={() => {
+                    setCsvText(`Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
+DZ,16 Alger,,,rate,,توصيل للمنزل:400|استلام من المكتب Stop Desk:250
+DZ,09 Blida,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
+DZ,31 Oran,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
+DZ,25 Constantine,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
+DZ,19 Setif,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
+DZ,15 Tizi Ouzou,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
+DZ,06 Bejaia,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
+DZ,13 Tlemcen,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
+DZ,23 Annaba,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
+DZ,35 Boumerdes,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
+DZ,42 Tipaza,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
+DZ,05 Batna,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
+DZ,07 Biskra,,,rate,,توصيل للمنزل:650|استلام من المكتب Stop Desk:450
+DZ,30 Ouargla,,,rate,,توصيل للمنزل:750|استلام من المكتب Stop Desk:550
+DZ,01 Adrar,,,rate,,توصيل للمنزل:950|استلام من المكتب Stop Desk:700`);
+                  }}
+                >
+                  🇩🇿 تحميل نموذج الجزائر (Algeria Preset)
+                </Button>
+              </InlineStack>
+
               <TextField
-                label="محتوى الـ CSV"
+                label="محتوى ملف الـ CSV"
                 multiline={8}
                 value={csvText}
                 onChange={setCsvText}

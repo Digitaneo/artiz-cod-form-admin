@@ -462,23 +462,40 @@
             </div>
           ` : ""}
 
-          <!-- Cascading Location Selector (Region -> City) -->
-          <div class="artiz-location-grid">
-            <div class="artiz-field-group">
-              <label>الولاية / الجهة *</label>
-              <select id="artiz-input-region" required>
-                ${regionNames.map(r => `<option value="${r}">${r}</option>`).join("")}
-                <option value="other">أخرى / كتابة يدوية...</option>
-              </select>
-            </div>
+          ${activeConfig.addressMode === "cascading" ? `
+            <!-- Cascading Location Selector (Region -> City) -->
+            <div class="artiz-location-grid">
+              <div class="artiz-field-group">
+                <label>الولاية / الجهة *</label>
+                <select id="artiz-input-region" required>
+                  ${regionNames.map(r => `<option value="${r}">${r}</option>`).join("")}
+                  <option value="other">أخرى...</option>
+                </select>
+              </div>
 
-            <div class="artiz-field-group">
-              <label>المدينة / البلدية *</label>
-              <select id="artiz-input-city" required>
-                <!-- Populated dynamically on region change -->
-              </select>
+              <div class="artiz-field-group">
+                <label>المدينة / البلدية *</label>
+                <select id="artiz-input-city" required>
+                  <!-- Populated dynamically on region change -->
+                </select>
+              </div>
             </div>
-          </div>
+          ` : `
+            <!-- Standard Mode: Cities list dropdown configured in Form Builder -->
+            ${activeConfig.requiredFields?.city !== false ? `
+              <div class="artiz-field-group">
+                <label>المدينة / المنطقة *</label>
+                <select id="artiz-input-city" required>
+                  <option value="">اختر مدينتك...</option>
+                  ${(activeConfig.citiesList || ["الدار البيضاء", "الرباط", "مراكش", "فاس", "طنجة", "أكادير", "أخرى"])
+                    .map(c => `<option value="${c}" ${getLoggedCustomer()?.city === c ? "selected" : ""}>${c}</option>`).join("")}
+                  ${getLoggedCustomer()?.city && !(activeConfig.citiesList || []).includes(getLoggedCustomer().city) 
+                    ? `<option value="${getLoggedCustomer().city}" selected>${getLoggedCustomer().city}</option>` 
+                    : ""}
+                </select>
+              </div>
+            ` : ""}
+          `}
 
           ${activeConfig.requiredFields?.address !== false ? `
             <div class="artiz-field-group">
@@ -510,19 +527,23 @@
       if (e.target === overlay) closeArtizModal();
     });
 
-    // Cascading Region -> City change event
-    const regionSelect = document.getElementById("artiz-input-region");
+    // City and Region change events
     const citySelect = document.getElementById("artiz-input-city");
-    if (regionSelect && citySelect) {
-      regionSelect.addEventListener("change", function () {
-        populateCityDropdown(regionSelect.value);
-        renderOrderItemsList();
-      });
+    if (citySelect) {
       citySelect.addEventListener("change", function () {
         renderOrderItemsList();
       });
-      // Initial population
-      populateCityDropdown(regionSelect.value);
+    }
+
+    if (activeConfig.addressMode === "cascading") {
+      const regionSelect = document.getElementById("artiz-input-region");
+      if (regionSelect && citySelect) {
+        regionSelect.addEventListener("change", function () {
+          populateCityDropdown(regionSelect.value);
+          renderOrderItemsList();
+        });
+        populateCityDropdown(regionSelect.value);
+      }
     }
 
     // Coupon event
@@ -809,7 +830,8 @@
 
     const name = document.getElementById("artiz-input-name")?.value.trim() || "عميل المتجر";
     const phone = document.getElementById("artiz-input-phone")?.value.trim() || "";
-    const region = document.getElementById("artiz-input-region")?.value.trim() || "";
+    const isCascading = activeConfig.addressMode === "cascading";
+    const region = isCascading ? (document.getElementById("artiz-input-region")?.value.trim() || "") : "";
     const city = document.getElementById("artiz-input-city")?.value.trim() || "الدار البيضاء";
     const address = document.getElementById("artiz-input-address")?.value.trim() || "العنوان بالمتجر";
     const note = document.getElementById("artiz-input-note")?.value.trim() || "";
@@ -830,6 +852,7 @@
     try {
       const affiliateData = getAffiliateTrackingData();
       const cust = getLoggedCustomer();
+      const finalAddress = isCascading && region ? `${address}, ${city}, ${region}` : address;
 
       const payload = {
         shop: currentShop,
@@ -839,9 +862,9 @@
           name,
           phone,
           country: "Morocco",
-          region,
+          region: region || undefined,
           city,
-          address: `${region ? region + ' - ' : ''}${city ? city + ' - ' : ''}${address}`,
+          address: finalAddress,
           note
         },
         items: orderItems.map(item => ({

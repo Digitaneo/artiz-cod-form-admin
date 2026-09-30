@@ -1,0 +1,20 @@
+Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
+MA,Casablanca-Settat,الدار البيضاء,,rate,20,توصيل سريع:20|استلام من المكتب:15
+MA,Casablanca-Settat,المحمدية,,rate,25,توصيل للمنزل:25
+MA,Casablanca-Settat,سطات,,rate,30,توصيل للمنزل:30
+MA,Casablanca-Settat,الجديدة,,rate,30,توصيل للمنزل:30
+MA,Rabat-Sale-Kenitra,الرباط,,rate,25,توصيل سريع:25|استلام من المكتب:20
+MA,Rabat-Sale-Kenitra,سلا,,rate,25,توصيل للمنزل:25
+MA,Rabat-Sale-Kenitra,تمارة,,rate,25,توصيل للمنزل:25
+MA,Rabat-Sale-Kenitra,القنيطرة,,rate,30,توصيل للمنزل:30
+MA,Marrakech-Safi,مراكش,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Tanger-Tetouan-Al Hoceima,طنجة,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Tanger-Tetouan-Al Hoceima,تطوان,,rate,35,توصيل للمنزل:35
+MA,Fes-Meknes,فاس,,rate,30,توصيل سريع:30|استلام من المكتب:20
+MA,Fes-Meknes,مكناس,,rate,30,توصيل للمنزل:30
+MA,Souss-Massa,أكادير,,rate,35,توصيل سريع:35|استلام من المكتب:25
+MA,Oriental,وجدة,,rate,35,توصيل للمنزل:35
+MA,Oriental,الناظور,,rate,35,توصيل للمنزل:35
+MA,Beni Mellal-Khenifra,بني ملال,,rate,35,توصيل للمنزل:35
+MA,Sahara,العيون,,rate,45,توصيل للمنزل:45
+MA,Sahara,الداخلة,,rate,50,توصيل للمنزل:50
