@@ -272,6 +272,12 @@
     }
   }
 
+  let showOtherCartItems = false;
+  window.artizToggleOtherCartItems = function () {
+    showOtherCartItems = !showOtherCartItems;
+    renderOrderItemsList();
+  };
+
   async function updateProductPageItems(productForm) {
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
     const variantId = variantInput ? variantInput.value : null;
@@ -308,19 +314,33 @@
       console.warn("Could not fetch product details", e);
     }
 
-    orderItems = [
-      {
-        variantId,
-        title,
-        variantTitle,
-        price,
-        originalPrice: originalPrice > price ? originalPrice : price,
-        unitDiscount: 0,
-        image,
-        quantity
-      }
-    ];
+    const currentProduct = {
+      variantId,
+      title,
+      variantTitle,
+      price,
+      originalPrice: originalPrice > price ? originalPrice : price,
+      unitDiscount: 0,
+      image,
+      quantity,
+      isCurrentProduct: true
+    };
 
+    // Load active cart items
+    let otherCartItems = [];
+    try {
+      const cRes = await fetch("/cart.js");
+      const cart = await cRes.json();
+      if (cart.currency) storeCurrency = cart.currency;
+
+      if (cart.items && cart.items.length > 0) {
+        otherCartItems = cart.items
+          .filter(item => String(item.variant_id) !== String(variantId))
+          .map(item => mapCartItemToOrderItem(item));
+      }
+    } catch (_) {}
+
+    orderItems = [currentProduct, ...otherCartItems];
     renderOrderItemsList();
   }
 
@@ -506,20 +526,58 @@
     }
   }
 
-  // 4. In-Modal Quantity Management
+  // 4. In-Modal / In-Form Quantity Management & Background Cart Sync
   window.artizUpdateQty = function (index, delta) {
     if (!orderItems[index]) return;
-    orderItems[index].quantity += delta;
-    if (orderItems[index].quantity <= 0) {
+    const item = orderItems[index];
+    item.quantity += delta;
+    if (item.quantity <= 0) {
       orderItems.splice(index, 1);
     }
     renderOrderItemsList();
+
+    // Background sync to Shopify cart if this was a cart item
+    if (item && item.variantId) {
+      const rawVariantId = String(item.variantId).replace("gid://shopify/ProductVariant/", "");
+      fetch("/cart/change.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: rawVariantId,
+          quantity: item.quantity <= 0 ? 0 : item.quantity
+        })
+      }).then(r => r.json()).then(cart => {
+        const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
+        countBadges.forEach(b => {
+          b.textContent = cart.item_count || 0;
+        });
+      }).catch(() => {});
+    }
   };
 
   window.artizRemoveItem = function (index) {
     if (!orderItems[index]) return;
+    const item = orderItems[index];
     orderItems.splice(index, 1);
     renderOrderItemsList();
+
+    // Background sync to Shopify cart
+    if (item && item.variantId) {
+      const rawVariantId = String(item.variantId).replace("gid://shopify/ProductVariant/", "");
+      fetch("/cart/change.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: rawVariantId,
+          quantity: 0
+        })
+      }).then(r => r.json()).then(cart => {
+        const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
+        countBadges.forEach(b => {
+          b.textContent = cart.item_count || 0;
+        });
+      }).catch(() => {});
+    }
   };
 
   // 5. Generate Checkout Form HTML (Unified for Modal, Drawer and Inline Embedded Mode)
@@ -765,33 +823,110 @@
     document.getElementById("artiz-submit-order-btn").disabled = false;
 
     // Render items with compare-at price & discount badges
-    container.innerHTML = orderItems.map((item, idx) => {
-      const hasDiscount = item.originalPrice && item.originalPrice > item.price;
-      const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+    const currentProduct = orderItems.find(i => i.isCurrentProduct);
+    const otherItems = orderItems.filter(i => !i.isCurrentProduct);
 
-      return `
+    if (currentProduct && otherItems.length > 0) {
+      const currentIdx = orderItems.indexOf(currentProduct);
+      const hasDiscount = currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price;
+      const discountPercent = hasDiscount ? Math.round((1 - (currentProduct.price / currentProduct.originalPrice)) * 100) : 0;
+      const otherTotal = otherItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+      container.innerHTML = `
         <div class="artiz-item-card">
-          ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
+          ${currentProduct.image ? `<img src="${currentProduct.image}" alt="${currentProduct.title}" class="artiz-item-thumb">` : ""}
           <div class="artiz-item-info">
-            <p class="artiz-item-title">${item.title}</p>
-            ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
+            <p class="artiz-item-title">${currentProduct.title}</p>
+            ${currentProduct.variantTitle ? `<p class="artiz-item-variant">${currentProduct.variantTitle}</p>` : ""}
             <div class="artiz-price-stack">
-              <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+              <span class="artiz-item-price">${(currentProduct.price * currentProduct.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
               ${hasDiscount ? `
-                <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
-                <span class="artiz-discount-tag">خصم ${discountPercent}% ${item.discountTitle ? `(${item.discountTitle})` : ''}</span>
+                <span class="artiz-item-compare-price">${(currentProduct.originalPrice * currentProduct.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
               ` : ""}
             </div>
+            <span class="artiz-current-product-tag">المنتج الحالي المعروض</span>
           </div>
           <div class="artiz-stepper">
-            <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
-            <span>${item.quantity}</span>
-            <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
+            <button type="button" onclick="artizUpdateQty(${currentIdx}, -1)">-</button>
+            <span>${currentProduct.quantity}</span>
+            <button type="button" onclick="artizUpdateQty(${currentIdx}, 1)">+</button>
           </div>
-          <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>
+        </div>
+
+        <div class="artiz-other-cart-section">
+          <button type="button" class="artiz-other-cart-toggle" onclick="window.artizToggleOtherCartItems()">
+            <div class="artiz-cart-toggle-left">
+              <span class="artiz-cart-badge-icon">🛒</span>
+              <span>منتجات أخرى في سلتك (${otherItems.length})</span>
+            </div>
+            <div class="artiz-cart-toggle-right">
+              <span class="artiz-other-cart-sum">${otherTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}</span>
+              <span class="artiz-other-cart-chevron">${showOtherCartItems ? '▲ إخفاء' : '▼ إظهار وتعديل'}</span>
+            </div>
+          </button>
+          
+          <div class="artiz-other-cart-list" style="${showOtherCartItems ? 'display:flex;' : 'display:none;'}">
+            ${otherItems.map(item => {
+              const idx = orderItems.indexOf(item);
+              const itemDiscount = item.originalPrice && item.originalPrice > item.price;
+              const itemDiscPercent = itemDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+
+              return `
+                <div class="artiz-item-card artiz-sub-item-card">
+                  ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
+                  <div class="artiz-item-info">
+                    <p class="artiz-item-title">${item.title}</p>
+                    ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
+                    <div class="artiz-price-stack">
+                      <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                      ${itemDiscount ? `
+                        <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                        <span class="artiz-discount-tag">خصم ${itemDiscPercent}%</span>
+                      ` : ""}
+                    </div>
+                  </div>
+                  <div class="artiz-stepper">
+                    <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
+                    <span>${item.quantity}</span>
+                    <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
+                  </div>
+                  <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف من السلة">✕</button>
+                </div>
+              `;
+            }).join("")}
+          </div>
         </div>
       `;
-    }).join("");
+    } else {
+      container.innerHTML = orderItems.map((item, idx) => {
+        const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+        const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+
+        return `
+          <div class="artiz-item-card">
+            ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
+            <div class="artiz-item-info">
+              <p class="artiz-item-title">${item.title}</p>
+              ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
+              <div class="artiz-price-stack">
+                <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                ${hasDiscount ? `
+                  <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                  <span class="artiz-discount-tag">خصم ${discountPercent}% ${item.discountTitle ? `(${item.discountTitle})` : ''}</span>
+                ` : ""}
+              </div>
+            </div>
+            <div class="artiz-stepper">
+              <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
+              <span>${item.quantity}</span>
+              <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
+            </div>
+            ${orderItems.length > 1 ? `<button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
 
     // Calculate Subtotals & Savings
     const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
