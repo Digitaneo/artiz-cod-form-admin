@@ -265,38 +265,27 @@ export default function FormBuilderPage() {
               <Select
                 label="نمط إدخال العنوان واختيار المدينة (Address Input Mode)"
                 options={[
-                  { label: "نمط كلاسيكي عادي: قائمة المدن المحددة + كتابة العنوان يدوياً (المغرب / المفضل للأغلبية)", value: "standard" },
-                  { label: "قوائم منسدلة متتالية: الولاية / الجهة ──► المدينة / البلدية (الجزائر / الـ 58 ولاية)", value: "cascading" }
+                  { label: "نمط كلاسيكي عادي: كتابة العنوان يدوياً (مع نظام تسعير توصيل موحد)", value: "standard" },
+                  { label: "قوائم منسدلة متتالية: الولاية / المحافظة ──► المدينة / القضاء (تسعير توصيل مخصص حسب كل مدينة)", value: "cascading" }
                 ]}
                 value={addressMode}
                 onChange={setAddressMode}
                 helpText={
                   addressMode === "standard"
-                    ? "العميل يختار مدينته مباشرة من قائمتك أدناه، ثم يكتب عنوانه بالتفصيل في خانة العنوان بحرية."
-                    : "العميل يختار ولايته أولاً ثم تظهر له بلديات ومدن ولايته تلقائياً."
+                    ? "العميل يكتب عنوانه كاملاً بمرونة (المدينة، الحي، الشارع، رقم المنزل). يتم تطبيق سعر التوصيل الموحد أو التوصيل المجاني من القواعد العامة للشحن دون تشتيت العميل بقوائم منسدلة."
+                    : "العميل يختار ولايته أو محافظته أولاً ثم تظهر له مدنها تلقائياً (دعم تلقائي لولايات الجزائر، محافظات العراق، وجهات المغرب) مع حساب أسعار الشحن المخصصة لكل مدينة."
                 }
               />
 
               <InlineStack gap="400">
                 <Checkbox label="الاسم الكامل (Full Name)" checked={reqName} onChange={setReqName} />
                 <Checkbox label="رقم الهاتف (Phone Number)" checked={reqPhone} onChange={setReqPhone} />
-                <Checkbox label="المدينة / المنطقة (City / Region)" checked={reqCity} onChange={setReqCity} />
+                {addressMode === "cascading" && (
+                  <Checkbox label="الولاية والمدينة (State & City Dropdowns)" checked={reqCity} onChange={setReqCity} />
+                )}
                 <Checkbox label="العنوان التفصيلي (Detailed Address)" checked={reqAddress} onChange={setReqAddress} />
                 <Checkbox label="ملاحظات التوصيل (Delivery Note)" checked={reqNote} onChange={setReqNote} />
               </InlineStack>
-
-              {addressMode === "standard" && (
-                <Box paddingBlockStart="200">
-                  <TextField
-                    label="قائمة المدن المدعومة (افصل بينها بفاصلة ,)"
-                    value={citiesList}
-                    onChange={setCitiesList}
-                    autoComplete="off"
-                    multiline={3}
-                    helpText="هذه المدن ستظهر للعميل في القائمة المنسدلة لاختيار مدينته بكل سهولة وسرعة."
-                  />
-                </Box>
-              )}
             </BlockStack>
           </Card>
 

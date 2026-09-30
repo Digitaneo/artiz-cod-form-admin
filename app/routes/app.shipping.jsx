@@ -17,6 +17,7 @@ import {
   Divider,
   Modal
 } from "@shopify/polaris";
+import { MOROCCO_SHIPPING_PRESET, IRAQ_SHIPPING_PRESET, ALGERIA_SHIPPING_PRESET } from "../data/shipping-presets";
 
 export async function loader({ request }) {
   try {
@@ -92,8 +93,30 @@ export default function ShippingManagerPage() {
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [presetNotice, setPresetNotice] = useState("");
 
-  const rates = config.rates || [];
+  const [rates, setRates] = useState(config.rates || []);
+
+  const handleApplyMoroccoPreset = () => {
+    setRates(MOROCCO_SHIPPING_PRESET);
+    setDefaultRate("35");
+    setDefaultTitle("توصيل سريع لجميع المدن المغربية");
+    setPresetNotice(`تم تحميل نموذج أسعار المغرب بنجاح (${MOROCCO_SHIPPING_PRESET.length} مدينة وإقليم)! يرجى النقر على 'حفظ التغييرات' بالجهة العليا لاعتمادها.`);
+  };
+
+  const handleApplyIraqPreset = () => {
+    setRates(IRAQ_SHIPPING_PRESET);
+    setDefaultRate("5000");
+    setDefaultTitle("توصيل سريع لجميع محافظات العراق");
+    setPresetNotice(`تم تحميل نموذج أسعار العراق بنجاح (${IRAQ_SHIPPING_PRESET.length} قضاء ومحافظة)! يرجى النقر على 'حفظ التغييرات' بالجهة العليا لاعتمادها.`);
+  };
+
+  const handleApplyAlgeriaPreset = () => {
+    setRates(ALGERIA_SHIPPING_PRESET);
+    setDefaultRate("600");
+    setDefaultTitle("توصيل سريع لجميع الولايات الجزائرية");
+    setPresetNotice(`تم تحميل نموذج أسعار الجزائر بنجاح (${ALGERIA_SHIPPING_PRESET.length} ولاية وبلدية)! يرجى النقر على 'حفظ التغييرات' بالجهة العليا لاعتمادها.`);
+  };
 
   const handleSave = () => {
     const updatedConfig = {
@@ -106,7 +129,8 @@ export default function ShippingManagerPage() {
         freeShippingEnabled: freeEnabled,
         freeShippingThreshold: Number(freeThreshold || 0),
         freeShippingText: freeText
-      }
+      },
+      rates
     };
 
     const fd = new FormData();
@@ -258,6 +282,32 @@ export default function ShippingManagerPage() {
                 </div>
                 <Button onClick={() => setCsvModalOpen(true)}>استيراد ملف CSV</Button>
               </InlineStack>
+
+              {presetNotice && (
+                <Banner tone="success" onDismiss={() => setPresetNotice("")}>
+                  {presetNotice}
+                </Banner>
+              )}
+
+              {/* Quick Country Presets */}
+              <BlockStack gap="200">
+                <Text variant="bodySm" tone="subdued">
+                  نماذج سريعة جاهزة لأسعار التوصيل (انقر لتحميل جميع المدن والأسعار التجريبية):
+                </Text>
+                <InlineStack gap="200" wrap>
+                  <Button size="slim" onClick={handleApplyMoroccoPreset}>
+                    🇲🇦 تطبيق نموذج أسعار المغرب (60+ مدينة)
+                  </Button>
+                  <Button size="slim" onClick={handleApplyAlgeriaPreset}>
+                    🇩🇿 تطبيق نموذج أسعار الجزائر (58 ولاية)
+                  </Button>
+                  <Button size="slim" onClick={handleApplyIraqPreset}>
+                    🇮🇶 تطبيق نموذج أسعار العراق (18 محافظة)
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+
+              <Divider />
 
               <TextField
                 placeholder="بحث في الولايات والمدن..."

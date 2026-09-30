@@ -28,16 +28,18 @@
       currency: "MAD",
       defaultRegion: "جهة الدار البيضاء - سطات",
       regions: {
-        "جهة الدار البيضاء - سطات": ["الدار البيضاء", "المحمدية", "سطات", "برشيد", "الجديدة", "بنسليمان", "سيدي بنور"],
-        "جهة الرباط - سلا - القنيطرة": ["الرباط", "سلا", "القنيطرة", "تمارة", "الصخيرات", "الخميسات", "سيدي قاسم", "سيدي سليمان"],
-        "جهة مراكش - آسفي": ["مراكش", "آسفي", "الصويرة", "قلعة السراغنة", "ابن جرير", "شيشاوة", "الحوز"],
-        "جهة طنجة - تطوان - الحسيمة": ["طنجة", "تطوان", "العرائش", "القصر الكبير", "الحسيمة", "شفشاون", "وزان", "المضيق - الفنيدق"],
-        "جهة فاس - مكناس": ["فاس", "مكناس", "تازة", "صفرو", "إفران", "تاونات", "الحاجب", "بولمان"],
-        "جهة سوس - ماسة": ["أكادير", "إنزكان - آيت ملول", "تارودانت", "أولاد تايمة", "تيزنيت", "بيوكرى", "طاطا"],
-        "جهة الشرق": ["وجدة", "الناظور", "بركان", "تاوريرت", "جرسيف", "الدريوش", "جرادة", "بوعرفة - فكيك"],
-        "جهة بني ملال - خنيفرة": ["بني ملال", "خريبكة", "وادي زم", "خنيفرة", "الفقيه بن صالح", "أزيلال"],
-        "جهة درعة - تافيلالت": ["الرشيدية", "ورزازات", "ميدلت", "تنغير", "زاكورة"],
-        "الأقاليم الجنوبية": ["العيون", "الداخلة", "كلميم", "طانطان", "بوجدور", "السمارة", "طرفاية", "أسا الزاك"]
+        "جهة الدار البيضاء - سطات": ["الدار البيضاء", "المحمدية", "سطات", "برشيد", "الجديدة", "بنسليمان", "سيدي بنور", "مديونة", "النواصر", "الدروة", "بوزنيقة", "حد السوالم"],
+        "جهة الرباط - سلا - القنيطرة": ["الرباط", "سلا", "القنيطرة", "تمارة", "الصخيرات", "الخميسات", "سيدي قاسم", "سيدي سليمان", "تيفلت", "سيدي يحيى الغرب", "سوق الأربعاء الغرب"],
+        "جهة مراكش - آسفي": ["مراكش", "آسفي", "الصويرة", "قلعة السراغنة", "ابن جرير", "شيشاوة", "تحناوت", "إمنتانوت", "اليوسفية", "تمنصورت"],
+        "جهة فاس - مكناس": ["فاس", "مكناس", "تازة", "صفرو", "إفران", "تاونات", "الحاجب", "بولمان", "أزرو", "ويسلان", "عين تاوجطات"],
+        "جهة طنجة - تطوان - الحسيمة": ["طنجة", "تطوان", "العرائش", "القصر الكبير", "الحسيمة", "شفشاون", "وزان", "المضيق", "الفنيدق", "أصيلة"],
+        "جهة سوس - ماسة": ["أكادير", "إنزكان", "آيت ملول", "تارودانت", "أولاد تايمة", "تيزنيت", "بيوكرى", "طاطا", "الدشيرة الجهادية", "القليعة"],
+        "جهة الشرق": ["وجدة", "الناظور", "بركان", "تاوريرت", "جرسيف", "الدريوش", "جرادة", "فكيك", "بوعرفة", "زايو", "العروي"],
+        "جهة بني ملال - خنيفرة": ["بني ملال", "خريبكة", "وادي زم", "خنيفرة", "الفقيه بن صالح", "أزيلال", "قصبة تادلة", "سوق السبت أولاد النمة", "أبي الجعد"],
+        "جهة درعة - تافيلالت": ["الرشيدية", "ورزازات", "ميدلت", "تنغير", "زاكورة", "أرفود", "قلعة مكونة", "الريصاني", "بومالن دادس"],
+        "جهة كلميم - واد نون": ["كلميم", "طانطان", "سيدي إفني", "آسا", "الزاك", "بويزكارن"],
+        "جهة العيون - الساقية الحمراء": ["العيون", "بوجدور", "السمارة", "طرفاية", "المرسى"],
+        "جهة الداخلة - وادي الذهب": ["الداخلة", "أوسرد"]
       }
     },
     "DZ": {
@@ -45,37 +47,89 @@
       currency: "DZD",
       defaultRegion: "16 الجزائر العاصمة",
       regions: {
-        "16 الجزائر العاصمة": ["الجزائر الوسطى", "باب الوادي", "الحراش", "بئر مراد رايس", "الرويبة", "زرالدة", "الشراقة", "الدرارية", "باب الزوار", "حسين داي", "بئر خادم"],
-        "31 وهران": ["وهران", "السانية", "عين الترك", "أرزيو", "بطيوة", "قديل", "بئر الجير"],
-        "25 قسنطينة": ["قسنطينة", "الخروب", "عين سمارة", "زيغود يوسف", "حامة بوزيان"],
-        "19 سطيف": ["سطيف", "العلمة", "عين ولمان", "بوقاعة", "عين الكبيرة"],
-        "09 البليدة": ["البليدة", "بوفاريك", "العفرون", "أولاد يعيش", "موزاية"],
-        "15 تيزي وزو": ["تيزي وزو", "عزازقة", "ذراع الميزان", "لاربعا ناث إيراثن"],
-        "06 بجاية": ["بجاية", "أقبو", "أميزور", "سيدي عيش", "خراطة"],
-        "13 تلمسان": ["تلمسان", "مغنية", "منصورة", "الرمشي", "سبدو"],
-        "23 عنابة": ["عنابة", "البوني", "سيدي عمار", "برحال", "عين الباردة"],
-        "01 أدرار": ["أدرار", "تيميمون", "أولف", "زاوية كنتة", "فنوغيل"],
-        "02 الشلف": ["الشلف", "تنس", "بوقادير", "واد الفضة", "أولاد فارس"],
-        "03 الأغواط": ["الأغواط", "أفلو", "حاسي الرمل", "قصر الحيران"],
-        "04 أم البواقي": ["أم البواقي", "عين البيضاء", "عين مليلة", "مسكيانة"],
-        "05 باتنة": ["باتنة", "بريكة", "عين التوتة", "مروانة", "أريس"],
-        "07 بسكرة": ["بسكرة", "طولقة", "سيدي عقبة", "أولاد جلال", "الوطاية"],
-        "08 بشار": ["بشار", "العبادلة", "بني عباس", "القنادسة"],
-        "10 البويرة": ["البويرة", "الأخضرية", "سور الغزلان", "عين بسام"],
-        "11 تمنراست": ["تمنراست", "عين صالح", "إين غزام"],
-        "12 تبسة": ["تبسة", "بئر العاتر", "الشريعة", "الونزة"],
-        "14 تيارت": ["تيارت", "السوقر", "فرندة", "قصر الشلالة"],
-        "17 الجلفة": ["الجلفة", "عين وسارة", "مسعد", "حاسي بحبح"],
-        "18 جيجل": ["جيجل", "طاهير", "الميلية", "العوانة"],
-        "20 سعيدة": ["سعيدة", "يوب", "عين الحجر"],
-        "21 سكيكدة": ["سكيكدة", "القل", "عزابة", "الحروش"],
-        "22 سيدي بلعباس": ["سيدي بلعباس", "تلاغ", "سفيزف", "ابن باديس"],
-        "24 قالمة": ["قالمة", "وادي الزناتي", "بوشقوف", "هيليوبوليس"],
-        "26 المدية": ["المدية", "البرواقية", "قصر البخاري", "بني سليمان"],
-        "27 مستغانم": ["مستغانم", "سيدي علي", "عين تادلس", "خير الدين"],
-        "28 المسيلة": ["المسيلة", "بوسعادة", "سيدي عيسى", "مقرة"],
-        "29 معسكر": ["معسكر", "سيق", "المحمدية", "تغنيف"],
-        "30 ورقلة": ["ورقلة", "تقرت", "حاسي مسعود", "الطيبات"]
+        "01 أدرار": ["أدرار", "تيميمون", "أولف", "زاوية كنتة", "رقان"],
+        "02 الشلف": ["الشلف", "تنس", "بوقادير", "واد الفضة", "أولاد فارس", "عين مران"],
+        "03 الأغواط": ["الأغواط", "أفلو", "حاسي الرمل", "قصر الحيران", "سيدي مخلوف"],
+        "04 أم البواقي": ["أم البواقي", "عين البيضاء", "عين مليلة", "مسكيانة", "عين فكرون"],
+        "05 باتنة": ["باتنة", "بريكة", "عين التوتة", "مروانة", "أريس", "نقاوس"],
+        "06 بجاية": ["بجاية", "أقبو", "أميزور", "سيدي عيش", "خراطة", "القصر"],
+        "07 بسكرة": ["بسكرة", "طولقة", "سيدي عقبة", "الوطاية", "زريبة الوادي"],
+        "08 بشار": ["بشار", "العبادلة", "القنادسة", "تاغيت"],
+        "09 البليدة": ["البليدة", "بوفاريك", "العفرون", "أولاد يعيش", "موزاية", "بوقرة", "الأربعاء"],
+        "10 البويرة": ["البويرة", "الأخضرية", "سور الغزلان", "عين بسام", "مشدالة"],
+        "11 تمنراست": ["تمنراست", "عين أمقل", "أبلسة"],
+        "12 تبسة": ["تبسة", "بئر العاتر", "الشريعة", "الونزة", "العوينات"],
+        "13 تلمسان": ["تلمسان", "مغنية", "منصورة", "الرمشي", "سبدو", "شتوان", "الغزوات"],
+        "14 تيارت": ["تيارت", "السوقر", "فرندة", "قصر الشلالة", "مهدية"],
+        "15 تيزي وزو": ["تيزي وزو", "عزازقة", "ذراع الميزان", "لاربعا ناث إيراثن", "واقنون", "بوغني"],
+        "16 الجزائر العاصمة": ["الجزائر الوسطى", "باب الوادي", "الحراش", "بئر مراد رايس", "الرويبة", "زرالدة", "الشراقة", "الدرارية", "باب الزوار", "حسين داي", "بئر خادم", "عين البنيان", "الدويرة", "براقي"],
+        "17 الجلفة": ["الجلفة", "عين وسارة", "مسعد", "حاسي بحبح", "دار الشيوخ", "الشارف"],
+        "18 جيجل": ["جيجل", "طاهير", "الميلية", "العوانة", "زيامة منصورية"],
+        "19 سطيف": ["سطيف", "العلمة", "عين ولمان", "بوقاعة", "عين الكبيرة", "عين آزال"],
+        "20 سعيدة": ["سعيدة", "يوب", "عين الحجر", "سيدي بوبكر"],
+        "21 سكيكدة": ["سكيكدة", "القل", "عزابة", "الحروش", "تمالوس"],
+        "22 سيدي بلعباس": ["سيدي بلعباس", "تلاغ", "سفيزف", "ابن باديس", "عين البرد"],
+        "23 عنابة": ["عنابة", "البوني", "سيدي عمار", "برحال", "عين الباردة", "الحجار"],
+        "24 قالمة": ["قالمة", "وادي الزناتي", "بوشقوف", "هيليوبوليس", "بلخير"],
+        "25 قسنطينة": ["قسنطينة", "الخروب", "عين سمارة", "زيغود يوسف", "حامة بوزيان", "ابن باديس", "علي منجلي"],
+        "26 المدية": ["المدية", "البرواقية", "قصر البخاري", "بني سليمان", "وزرة", "تابلاط"],
+        "27 مستغانم": ["مستغانم", "سيدي علي", "عين تادلس", "خير الدين", "حاسي ماماش"],
+        "28 المسيلة": ["المسيلة", "بوسعادة", "سيدي عيسى", "مقرة", "عين الحجل", "برهوم"],
+        "29 معسكر": ["معسكر", "سيق", "المحمدية", "تغنيف", "غريس", "وادي الأبطال"],
+        "30 ورقلة": ["ورقلة", "حاسي مسعود", "الرويسات", "سيدي خويلد"],
+        "31 وهران": ["وهران", "السانية", "عين الترك", "أرزيو", "بطيوة", "قديل", "بئر الجير", "الكرمة"],
+        "32 البيض": ["البيض", "الأبيض سيدي الشيخ", "بوعلام", "بريزينة"],
+        "33 إليزي": ["إليزي", "دبداب", "إن أميناس"],
+        "34 برج بوعريريج": ["برج بوعريريج", "رأس الوادي", "برج زمورة", "المنصورة"],
+        "35 بومرداس": ["بومرداس", "برج منايل", "دلس", "يسر", "خميس الخشنة", "بودواو"],
+        "36 الطارف": ["الطارف", "بوثلجة", "بن مهيدي", "القالة", "الذرعان"],
+        "37 تندوف": ["تندوف", "أم العسل"],
+        "38 تسمسيلت": ["تسمسيلت", "ثنية الحد", "برج بونعامة", "خميستي"],
+        "39 الوادي": ["الوادي", "قمار", "الدبيلة", "الرقيبة", "جامعة"],
+        "40 خنشلة": ["خنشلة", "ششار", "قايس", "بابار", "أولاد رشاش"],
+        "41 سوق أهراس": ["سوق أهراس", "سدراتة", "مداوروش", "تاورة"],
+        "42 تيبازة": ["تيبازة", "شرشال", "القليعة", "حجوط", "فوكة", "بوسماعيل"],
+        "43 ميلة": ["ميلة", "شلغوم العيد", "تاجنانت", "فرجيوة", "قرارم قوقة"],
+        "44 عين الدفلى": ["عين الدفلى", "خميس مليانة", "مليانة", "العطاف", "الجليدة"],
+        "45 النعامة": ["النعامة", "مشرية", "عين الصفراء", "عسلة"],
+        "46 عين تموشنت": ["عين تموشنت", "بني صاف", "حمام بوحجر", "العامرية"],
+        "47 غرداية": ["غرداية", "متليلي", "القرارة", "بريان", "بني يزقن"],
+        "48 غليزان": ["غليزان", "وادي ارهيو", "مازونة", "يلل", "زمورة"],
+        "49 تيميمون": ["تيميمون", "أوقروت", "شروين"],
+        "50 برج باجي مختار": ["برج باجي مختار", "تيمياوين"],
+        "51 أولاد جلال": ["أولاد جلال", "سيدي خالد", "رأس الميعاد"],
+        "52 بني عباس": ["بني عباس", "إقلي", "الوطاء"],
+        "53 عين صالح": ["عين صالح", "فقارة الزاوية", "إينغر"],
+        "54 عين قزام": ["عين قزام", "تين زواتين"],
+        "55 تقرت": ["تقرت", "الطيبات", "تماسين", "المقارين"],
+        "56 جانت": ["جانت", "برج الحواس"],
+        "57 المغير": ["المغير", "جامعة", "أم الطيور"],
+        "58 المنيعة": ["المنيعة", "حاسي القارة", "حاسي الفحل"]
+      }
+    },
+    "IQ": {
+      name: "العراق",
+      currency: "IQD",
+      defaultRegion: "محافظة بغداد",
+      regions: {
+        "محافظة بغداد": ["الرصافة", "الكرخ", "الكاظمية", "الأعظمية", "المنصور", "الكرادة", "الدورة", "مدينة الصدر", "بغداد الجديدة", "الشعب", "السيدية", "الزعفرانية", "أبو غريب", "المحمودية", "التاجي", "المدائن"],
+        "محافظة البصرة": ["البصرة المركز", "الزبير", "القرنة", "شط العرب", "الفاو", "أبو الخصيب", "المدينة", "الهارثة", "أم قصر"],
+        "محافظة نينوى (الموصل)": ["الموصل", "تلعفر", "سنجار", "الحمدانية", "تلكيف", "مخمور", "الشيخان", "الحضر", "البعاج"],
+        "محافظة أربيل": ["أربيل المركز", "سوران", "شقلاوة", "كويسنجق", "راوندوز", "خبات", "ميركسور", "دشتي هولير", "عنكاوا"],
+        "محافظة السليمانية": ["السليمانية المركز", "حلبجة", "رانية", "دوكان", "بنجوين", "كلار", "دربندخان", "جمجمال"],
+        "محافظة دهوك": ["دهوك المركز", "زاخو", "العمادية", "سميل", "عقرة", "شيخان", "بردرش"],
+        "محافظة كركوك": ["كركوك المركز", "الحويجة", "داقوق", "الدبس"],
+        "محافظة النجف الأشرف": ["النجف المركز", "الكوفة", "المناذرة", "المشخاب", "الحيرة"],
+        "محافظة كربلاء المقدسة": ["كربلاء المركز", "الهندية (طويريج)", "عين التمر", "الحر"],
+        "محافظة بابل (الحلة)": ["الحلة المركز", "المحاويل", "المسيب", "الهاشمية", "القاسم", "الإسكندرية"],
+        "محافظة الأنبار": ["الرمادي", "الفلوجة", "هيت", "حديثة", "القائم", "الرطبة", "راوة", "عنة", "العامرية"],
+        "محافظة ديالى": ["بعقوبة المركز", "المقدادية", "الخالص", "خانقين", "بلدروز", "مندلي", "كفري"],
+        "محافظة واسط (الكوت)": ["الكوت المركز", "الحي", "النعمانية", "الصويرة", "العزيزية", "بدرة"],
+        "محافظة ذي قار (الناصرية)": ["الناصرية المركز", "الشطرة", "الرفاعي", "سوق الشيوخ", "الجبايش", "قلعة سكر"],
+        "محافظة ميسان (العمارة)": ["العمارة المركز", "المجر الكبير", "علي الغربي", "الميمونة", "قلعة صالح", "الكحلاء"],
+        "محافظة المثنى (السماوة)": ["السماوة المركز", "الرميثة", "الخضر", "السلمان", "الوركاء"],
+        "محافظة القادسية (الديوانية)": ["الديوانية المركز", "الشامية", "عفك", "الحمزة", "الشنافية"],
+        "محافظة صلاح الدين": ["تكريت", "سامراء", "بيجي", "بلد", "الدجيل", "طوزخورماتو", "الشرقاط", "آمرلي"]
       }
     },
     "SA": {
@@ -92,6 +146,27 @@
       }
     }
   };
+
+  function detectActiveCountryCode() {
+    // 1. Check Shopify Market active country code (e.g. "IQ", "DZ", "MA", "SA")
+    const shopifyCountry = window.Shopify?.country;
+    if (shopifyCountry && REGIONAL_DATASETS[shopifyCountry.toUpperCase()]) {
+      return shopifyCountry.toUpperCase();
+    }
+
+    // 2. Active currency clue
+    const activeCurr = window.Shopify?.currency?.active;
+    if (activeCurr === "IQD") return "IQ";
+    if (activeCurr === "DZD") return "DZ";
+    if (activeCurr === "SAR") return "SA";
+    if (activeCurr === "MAD") return "MA";
+
+    // 3. Fallback to activeConfig.defaultCountry
+    const cfgCountry = (activeConfig?.defaultCountry || "MA").toUpperCase();
+    if (REGIONAL_DATASETS[cfgCountry]) return cfgCountry;
+
+    return "MA";
+  }
 
   function getLoggedCustomer() {
     if (loggedCustomer) return loggedCustomer;
@@ -668,9 +743,13 @@
 
   // 5. Generate Checkout Form HTML (Unified for Modal, Drawer and Inline Embedded Mode)
   function generateFormInnerHtml(isInline = false) {
-    const defaultCountry = activeConfig.defaultCountry || "MA";
-    const countryData = REGIONAL_DATASETS[defaultCountry] || REGIONAL_DATASETS["MA"];
+    const activeCountry = detectActiveCountryCode();
+    const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
     const regionNames = Object.keys(countryData.regions);
+
+    // Contextual labels based on detected country
+    const regionLabel = activeCountry === "IQ" ? "المحافظة *" : (activeCountry === "DZ" ? "الولاية *" : "الولاية / الجهة *");
+    const cityLabel = activeCountry === "IQ" ? "المدينة / القضاء *" : (activeCountry === "DZ" ? "المدينة / البلدية *" : "المدينة / الإقليم *");
 
     return `
       <div class="artiz-modal-container" id="${isInline ? 'artiz-inline-box' : 'artiz-modal-box'}">
@@ -726,15 +805,15 @@
           ${activeConfig.requiredFields?.phone !== false ? `
             <div class="artiz-field-group">
               <label>رقم الهاتف للتوصيل *</label>
-              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 06xxxxxxxx أو 05xxxxxxxx" value="${getLoggedCustomer()?.phone || ""}">
+              <input type="tel" id="artiz-input-phone" required placeholder="مثال: 06xxxxxxxx أو 05xxxxxxxx أو 07xxxxxxxx" value="${getLoggedCustomer()?.phone || ""}">
             </div>
           ` : ""}
 
           ${activeConfig.addressMode === "cascading" ? `
-            <!-- Cascading Location Selector (Region -> City) -->
+            <!-- Cascading Location Selector (Region -> City) with Dynamic Country Detection -->
             <div class="artiz-location-grid">
               <div class="artiz-field-group">
-                <label>الولاية / الجهة *</label>
+                <label>${regionLabel}</label>
                 <select id="artiz-input-region" required>
                   ${regionNames.map(r => `<option value="${r}">${r}</option>`).join("")}
                   <option value="other">أخرى...</option>
@@ -742,35 +821,28 @@
               </div>
 
               <div class="artiz-field-group">
-                <label>المدينة / البلدية *</label>
+                <label>${cityLabel}</label>
                 <select id="artiz-input-city" required>
                   <!-- Populated dynamically on region change -->
                 </select>
               </div>
             </div>
-          ` : `
-            <!-- Standard Mode: Cities list dropdown configured in Form Builder -->
-            ${activeConfig.requiredFields?.city !== false ? `
+
+            ${activeConfig.requiredFields?.address !== false ? `
               <div class="artiz-field-group">
-                <label>المدينة / المنطقة *</label>
-                <select id="artiz-input-city" required>
-                  <option value="">اختر مدينتك...</option>
-                  ${(activeConfig.citiesList || ["الدار البيضاء", "الرباط", "مراكش", "فاس", "طنجة", "أكادير", "أخرى"])
-                    .map(c => `<option value="${c}" ${getLoggedCustomer()?.city === c ? "selected" : ""}>${c}</option>`).join("")}
-                  ${getLoggedCustomer()?.city && !(activeConfig.citiesList || []).includes(getLoggedCustomer().city) 
-                    ? `<option value="${getLoggedCustomer().city}" selected>${getLoggedCustomer().city}</option>` 
-                    : ""}
-                </select>
+                <label>العنوان التفصيلي (الحي، الشارع، المعلم) *</label>
+                <textarea id="artiz-input-address" required placeholder="اكتب اسم الحي والشارع ورقم البناية">${getLoggedCustomer()?.address || ""}</textarea>
+              </div>
+            ` : ""}
+          ` : `
+            <!-- Mode 1: Classic Manual Address (Unified Shipping Engine - No City Dropdowns) -->
+            ${activeConfig.requiredFields?.address !== false ? `
+              <div class="artiz-field-group">
+                <label>العنوان التفصيلي (المدينة، الحي، الشارع، رقم المنزل) *</label>
+                <textarea id="artiz-input-address" required placeholder="مثال: المدينة، اسم الحي، الشارع، رقم البناية أو الشقة">${getLoggedCustomer()?.address || ""}</textarea>
               </div>
             ` : ""}
           `}
-
-          ${activeConfig.requiredFields?.address !== false ? `
-            <div class="artiz-field-group">
-              <label>العنوان التفصيلي (الحي، الشارع، المعلم) *</label>
-              <textarea id="artiz-input-address" required placeholder="اكتب اسم الحي والشارع ورقم البناية">${getLoggedCustomer()?.address || ""}</textarea>
-            </div>
-          ` : ""}
 
           ${activeConfig.requiredFields?.note ? `
             <div class="artiz-field-group">
@@ -800,19 +872,16 @@
       });
     }
 
-    // City and Region change events
-    const citySelect = document.getElementById("artiz-input-city");
-    if (citySelect) {
-      citySelect.addEventListener("change", function () {
-        renderOrderItemsList();
-      });
-    }
-
+    // Cascading City and Region change events
     if (activeConfig.addressMode === "cascading") {
       const regionSelect = document.getElementById("artiz-input-region");
+      const citySelect = document.getElementById("artiz-input-city");
       if (regionSelect && citySelect) {
         regionSelect.addEventListener("change", function () {
           populateCityDropdown(regionSelect.value);
+          renderOrderItemsList();
+        });
+        citySelect.addEventListener("change", function () {
           renderOrderItemsList();
         });
         populateCityDropdown(regionSelect.value);
@@ -850,12 +919,12 @@
     const citySelect = document.getElementById("artiz-input-city");
     if (!citySelect) return;
 
-    const defaultCountry = activeConfig.defaultCountry || "MA";
-    const countryData = REGIONAL_DATASETS[defaultCountry] || REGIONAL_DATASETS["MA"];
-    const cities = countryData.regions[selectedRegion] || activeConfig.citiesList || ["الدار البيضاء", "الرباط", "مراكش", "أخرى"];
+    const activeCountry = detectActiveCountryCode();
+    const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
+    const cities = countryData.regions[selectedRegion] || ["المركز", "أخرى"];
 
     citySelect.innerHTML = cities.map(c => `<option value="${c}">${c}</option>`).join("");
-    citySelect.innerHTML += `<option value="other">مدينة أخرى...</option>`;
+    citySelect.innerHTML += `<option value="other">مدينة / قضاء أخرى...</option>`;
 
     // If customer had an existing city, pre-select it
     const custCity = getLoggedCustomer()?.city;
@@ -1092,9 +1161,9 @@
         freeShippingContainer.innerHTML = "";
       }
 
-      // Methods options: match regional custom rates first
+      // Methods options: match regional custom rates only if addressMode === "cascading"
       let methods = null;
-      if (activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
+      if (activeConfig.addressMode === "cascading" && activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
         const cityVal = (document.getElementById("artiz-input-city")?.value || "").trim().toLowerCase();
         const regionVal = (document.getElementById("artiz-input-region")?.value || "").trim().toLowerCase();
 
@@ -1235,11 +1304,28 @@
       return;
     }
 
+    const activeCountryCode = detectActiveCountryCode();
+    const countryNames = {
+      "MA": "Morocco",
+      "DZ": "Algeria",
+      "IQ": "Iraq",
+      "SA": "Saudi Arabia"
+    };
+    const defaultCities = {
+      "MA": "الدار البيضاء",
+      "DZ": "الجزائر",
+      "IQ": "بغداد",
+      "SA": "الرياض"
+    };
+    const targetCountry = countryNames[activeCountryCode] || "Morocco";
+
     const name = document.getElementById("artiz-input-name")?.value.trim() || "عميل المتجر";
     const phone = document.getElementById("artiz-input-phone")?.value.trim() || "";
     const isCascading = activeConfig.addressMode === "cascading";
     const region = isCascading ? (document.getElementById("artiz-input-region")?.value.trim() || "") : "";
-    const city = document.getElementById("artiz-input-city")?.value.trim() || "الدار البيضاء";
+    const city = isCascading
+      ? (document.getElementById("artiz-input-city")?.value.trim() || defaultCities[activeCountryCode] || "الدار البيضاء")
+      : (defaultCities[activeCountryCode] || "الدار البيضاء");
     const address = document.getElementById("artiz-input-address")?.value.trim() || "العنوان بالمتجر";
     const note = document.getElementById("artiz-input-note")?.value.trim() || "";
 
@@ -1259,7 +1345,6 @@
     try {
       const affiliateData = getAffiliateTrackingData();
       const cust = getLoggedCustomer();
-      const defaultCountry = activeConfig.defaultCountry === "DZ" ? "Algeria" : "Morocco";
 
       const payload = {
         shop: currentShop,
@@ -1268,7 +1353,7 @@
           email: cust?.email || undefined,
           name,
           phone,
-          country: defaultCountry,
+          country: targetCountry,
           region: region || undefined,
           province: region || undefined,
           city,
