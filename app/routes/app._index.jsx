@@ -16,26 +16,59 @@ export async function loader({ request }) {
   let shopifyOk = false;
   let shop = null;
   let session = null;
+  let admin = null;
 
-  // 1. Fetch dashboard stats directly from Shopify Admin API
   try {
     const authResult = await authenticate.admin(request);
     session = authResult.session;
+    admin = authResult.admin;
     shop = session?.shop;
-    const statsData = await getDashboardStats(authResult.admin);
-    stats = {
-      orders: statsData.orders,
-      revenue: statsData.revenue,
-      customers: statsData.customers,
-      products: statsData.products,
-    };
-    recentOrders = statsData.recentOrders;
-    shopifyOk = true;
   } catch (error) {
-    console.error("Dashboard direct Shopify query failed:", error);
+    console.error("Dashboard authenticate.admin failed:", error);
   }
 
-  // 2. Query Worker for system status (using workerFetch — no double authenticate.admin)
+  // 1. Fetch dashboard stats via Worker Single Source of Truth
+  if (session) {
+    try {
+      const summaryRes = await workerFetch(session, "/dashboard/summary");
+      if (summaryRes?.ok && summaryRes?.summary) {
+        stats = {
+          orders: summaryRes.summary.stats?.orders || 0,
+          revenue: summaryRes.summary.stats?.revenue || 0,
+          customers: summaryRes.summary.stats?.customers || 0,
+          products: summaryRes.summary.stats?.products || 0,
+        };
+        recentOrders = (summaryRes.summary.recentOrders || []).map(o => ({
+          orderNumber: o.orderNumber || "-",
+          customer: o.customer || "Guest Customer",
+          total: o.total || "0",
+          status: o.financialStatus || o.status || "-"
+        }));
+        shopifyOk = true;
+      }
+    } catch (e) {
+      console.warn("Worker dashboard summary failed, attempting direct fallback:", e);
+    }
+  }
+
+  // 2. Fallback to direct Shopify Admin query if worker summary was unavailable
+  if (!shopifyOk && admin) {
+    try {
+      const statsData = await getDashboardStats(admin);
+      stats = {
+        orders: statsData.orders,
+        revenue: statsData.revenue,
+        customers: statsData.customers,
+        products: statsData.products,
+      };
+      recentOrders = statsData.recentOrders;
+      shopifyOk = true;
+    } catch (error) {
+      console.error("Dashboard direct Shopify query failed:", error);
+    }
+  }
+
+  // 3. Query Worker for system status
   let systemStatus = {
     worker: false,
     kv: false,
@@ -51,7 +84,7 @@ export async function loader({ request }) {
         worker: statusData?.worker?.status === "HEALTHY",
         kv: statusData?.database?.kvStatus === "HEALTHY",
         accessToken: statusData?.security?.accessTokenStatus === "ACTIVE",
-        shopify: shopifyOk,
+        shopify: shopifyOk || statusData?.shopify?.connection === "CONNECTED",
       };
     } catch (error) {
       console.error("Dashboard workerFetch system/status failed:", error);
