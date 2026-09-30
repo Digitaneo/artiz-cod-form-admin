@@ -118,6 +118,11 @@
       const json = await res.json();
       activeConfig = json.data?.formConfig || json.formConfig || getFallbackConfig();
       activeShippingConfig = json.data?.shippingConfig || null;
+      if (activeShippingConfig?.shopCurrency) {
+        storeCurrency = activeShippingConfig.shopCurrency;
+      } else if (window.Shopify?.currency?.active) {
+        storeCurrency = window.Shopify.currency.active;
+      }
     } catch (e) {
       console.warn("[Artiz COD] Using fallback config:", e);
       activeConfig = getFallbackConfig();
@@ -128,11 +133,23 @@
       document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
     }
 
-    // Build Modal / Drawer DOM Container
-    injectModalContainer();
+    const isInline = activeConfig.displayMode === "inline_form" || activeConfig.displayMode === "embedded";
+    const hasProductTarget = Boolean(document.querySelector('form[action*="/cart/add"]') || document.getElementById("artiz-cod-form-wrapper"));
 
-    // Attach trigger buttons on Product Page & Cart
-    setupProductPageTrigger();
+    if (isInline && hasProductTarget) {
+      setupInlineProductForm();
+    } else {
+      injectModalContainer();
+      setupProductPageTrigger();
+    }
+
+    // Update block trigger button text if present
+    const blockBtn = document.getElementById("artiz-block-trigger-btn");
+    if (blockBtn && activeConfig.buttonText) {
+      const span = blockBtn.querySelector("span");
+      if (span) span.textContent = activeConfig.buttonText;
+    }
+
     setupCartPageTrigger();
   }
 
@@ -152,12 +169,20 @@
     };
   }
 
-  // 2. Setup Product Page Dual Action Buttons
+  // 2. Setup Product Page Trigger (Inline Form vs Modal/Drawer Trigger Buttons)
   function setupProductPageTrigger() {
     if (!activeConfig.directBuyTrigger) return;
 
     const productForm = document.querySelector('form[action*="/cart/add"]');
-    if (!productForm || document.getElementById("artiz-product-dual-actions")) return;
+    if (!productForm) return;
+
+    const isInline = activeConfig.displayMode === "inline_form" || activeConfig.displayMode === "embedded";
+    if (isInline) {
+      setupInlineProductForm(productForm);
+      return;
+    }
+
+    if (document.getElementById("artiz-product-dual-actions")) return;
 
     const container = document.createElement("div");
     container.id = "artiz-product-dual-actions";
@@ -194,6 +219,109 @@
     } else {
       productForm.appendChild(container);
     }
+  }
+
+  function setupInlineProductForm(productForm) {
+    if (document.getElementById("artiz-inline-product-form")) return;
+
+    if (!productForm) {
+      productForm = document.querySelector('form[action*="/cart/add"]');
+    }
+
+    const wrapper = document.getElementById("artiz-cod-form-wrapper");
+
+    const container = document.createElement("div");
+    container.id = "artiz-inline-product-form";
+    container.className = "artiz-inline-container";
+    container.innerHTML = generateFormInnerHtml(true);
+
+    if (wrapper) {
+      wrapper.innerHTML = "";
+      wrapper.appendChild(container);
+    } else if (productForm) {
+      const submitBtn = productForm.querySelector('button[type="submit"], input[type="submit"]');
+      if (submitBtn && submitBtn.parentNode) {
+        submitBtn.parentNode.insertBefore(container, submitBtn.nextSibling);
+      } else {
+        productForm.appendChild(container);
+      }
+    } else {
+      const mainContainer = document.querySelector('.product__info-container, .product-form, main, [data-section-type="product"]');
+      if (mainContainer) {
+        mainContainer.appendChild(container);
+      } else {
+        document.body.appendChild(container);
+      }
+    }
+
+    bindFormEvents();
+
+    // Populate initial product into orderItems
+    if (productForm) {
+      updateProductPageItems(productForm);
+
+      // Watch for variant / qty changes in product form
+      productForm.addEventListener("change", function () {
+        setTimeout(() => updateProductPageItems(productForm), 80);
+      });
+      productForm.addEventListener("input", function (e) {
+        if (e.target && e.target.name === "quantity") {
+          setTimeout(() => updateProductPageItems(productForm), 50);
+        }
+      });
+    }
+  }
+
+  async function updateProductPageItems(productForm) {
+    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
+    const variantId = variantInput ? variantInput.value : null;
+    const qtyInput = productForm.querySelector('input[name="quantity"]');
+    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+
+    if (!variantId) return;
+
+    let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
+    let price = 0;
+    let originalPrice = 0;
+    let image = "";
+    let variantTitle = "";
+
+    try {
+      const pathname = window.location.pathname;
+      const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
+      if (productHandle) {
+        const pRes = await fetch(`/products/${productHandle}.js`);
+        const pData = await pRes.json();
+        title = pData.title;
+        image = pData.featured_image || "";
+        const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
+        if (variantObj) {
+          price = variantObj.price / 100;
+          originalPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
+          variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
+          if (variantObj.featured_image?.src) {
+            image = variantObj.featured_image.src;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Could not fetch product details", e);
+    }
+
+    orderItems = [
+      {
+        variantId,
+        title,
+        variantTitle,
+        price,
+        originalPrice: originalPrice > price ? originalPrice : price,
+        unitDiscount: 0,
+        image,
+        quantity
+      }
+    ];
+
+    renderOrderItemsList();
   }
 
   async function handleAddToCart(productForm, btn) {
@@ -394,24 +522,17 @@
     renderOrderItemsList();
   };
 
-  // 5. Render Modal Container
-  function injectModalContainer() {
-    if (document.getElementById("artiz-modal-overlay")) return;
-
-    const isDrawer = activeConfig.displayMode === "slide_drawer";
-    const overlay = document.createElement("div");
-    overlay.id = "artiz-modal-overlay";
-    overlay.className = `artiz-modal-overlay ${isDrawer ? "artiz-drawer-mode" : ""}`;
-
-    const defaultCountry = "MA";
+  // 5. Generate Checkout Form HTML (Unified for Modal, Drawer and Inline Embedded Mode)
+  function generateFormInnerHtml(isInline = false) {
+    const defaultCountry = activeConfig.defaultCountry || "MA";
     const countryData = REGIONAL_DATASETS[defaultCountry] || REGIONAL_DATASETS["MA"];
     const regionNames = Object.keys(countryData.regions);
 
-    overlay.innerHTML = `
-      <div class="artiz-modal-container" id="artiz-modal-box">
+    return `
+      <div class="artiz-modal-container" id="${isInline ? 'artiz-inline-box' : 'artiz-modal-box'}">
         <div class="artiz-modal-header">
           <h3>${activeConfig.formTitle || "إتمام الطلب - الدفع عند الاستلام"}</h3>
-          <button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>
+          ${!isInline ? `<button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>` : ""}
         </div>
 
         <!-- Free Shipping Progress Bar Container -->
@@ -516,19 +637,24 @@
 
           <button type="submit" id="artiz-submit-order-btn" class="artiz-submit-button">
             <span id="artiz-btn-spinner" class="artiz-spinner" style="display:none;"></span>
-            <span id="artiz-btn-label">تأكيد الطلب الآن (الدفع عند الاستلام)</span>
+            <span id="artiz-btn-label">${activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)"}</span>
           </button>
         </form>
       </div>
     `;
+  }
 
-    document.body.appendChild(overlay);
-
+  function bindFormEvents() {
     // Close events
-    document.getElementById("artiz-modal-close-btn").addEventListener("click", closeArtizModal);
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) closeArtizModal();
-    });
+    const closeBtn = document.getElementById("artiz-modal-close-btn");
+    if (closeBtn) closeBtn.addEventListener("click", closeArtizModal);
+
+    const overlay = document.getElementById("artiz-modal-overlay");
+    if (overlay) {
+      overlay.addEventListener("click", function (e) {
+        if (e.target === overlay) closeArtizModal();
+      });
+    }
 
     // City and Region change events
     const citySelect = document.getElementById("artiz-input-city");
@@ -556,14 +682,32 @@
     }
 
     // Submit event
-    document.getElementById("artiz-checkout-form").addEventListener("submit", handleSubmitOrder);
+    const form = document.getElementById("artiz-checkout-form");
+    if (form) {
+      form.removeEventListener("submit", handleSubmitOrder);
+      form.addEventListener("submit", handleSubmitOrder);
+    }
+  }
+
+  function injectModalContainer() {
+    if (document.getElementById("artiz-modal-overlay")) return;
+
+    const isDrawer = activeConfig.displayMode === "slide_drawer";
+    const overlay = document.createElement("div");
+    overlay.id = "artiz-modal-overlay";
+    overlay.className = `artiz-modal-overlay ${isDrawer ? "artiz-drawer-mode" : ""}`;
+    overlay.innerHTML = generateFormInnerHtml(false);
+
+    document.body.appendChild(overlay);
+    bindFormEvents();
   }
 
   function populateCityDropdown(selectedRegion) {
     const citySelect = document.getElementById("artiz-input-city");
     if (!citySelect) return;
 
-    const countryData = REGIONAL_DATASETS["MA"];
+    const defaultCountry = activeConfig.defaultCountry || "MA";
+    const countryData = REGIONAL_DATASETS[defaultCountry] || REGIONAL_DATASETS["MA"];
     const cities = countryData.regions[selectedRegion] || activeConfig.citiesList || ["الدار البيضاء", "الرباط", "مراكش", "أخرى"];
 
     citySelect.innerHTML = cities.map(c => `<option value="${c}">${c}</option>`).join("");
@@ -578,6 +722,9 @@
   }
 
   function openArtizModal() {
+    if (!document.getElementById("artiz-modal-overlay")) {
+      injectModalContainer();
+    }
     renderOrderItemsList();
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
@@ -713,10 +860,35 @@
         freeShippingContainer.innerHTML = "";
       }
 
-      // Methods options (Home vs Stop Desk)
-      const methods = shippingGen.defaultMethods || [
-        { id: "home", title: shippingGen.defaultTitle || "توصيل سريع للمنزل", price: Number(shippingGen.defaultRate || 30) }
-      ];
+      // Methods options: match regional custom rates first
+      let methods = null;
+      if (activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
+        const cityVal = (document.getElementById("artiz-input-city")?.value || "").trim().toLowerCase();
+        const regionVal = (document.getElementById("artiz-input-region")?.value || "").trim().toLowerCase();
+
+        const matchedRate = activeShippingConfig.rates.find(r => {
+          if (cityVal && (r.city || "").trim().toLowerCase() === cityVal) return true;
+          if (regionVal && (r.region || "").trim().toLowerCase() === regionVal && !r.city) return true;
+          return false;
+        });
+
+        if (matchedRate) {
+          if (matchedRate.customRates && String(matchedRate.customRates).includes(":")) {
+            methods = String(matchedRate.customRates).split("|").map((p, idx) => {
+              const [t, pr] = p.split(":");
+              return { id: `custom_${idx}`, title: t.trim(), price: Number(pr.trim() || 0) };
+            });
+          } else if (matchedRate.cost !== undefined && matchedRate.cost !== null) {
+            methods = [{ id: "standard", title: matchedRate.title || shippingGen.defaultTitle || "توصيل قياسي", price: Number(matchedRate.cost) }];
+          }
+        }
+      }
+
+      if (!methods || methods.length === 0) {
+        methods = shippingGen.defaultMethods || [
+          { id: "home", title: shippingGen.defaultTitle || "توصيل سريع للمنزل", price: Number(shippingGen.defaultRate || 30) }
+        ];
+      }
 
       if (!selectedShippingMethod || !methods.some(m => m.id === selectedShippingMethod)) {
         selectedShippingMethod = methods[0]?.id || "home";
@@ -911,7 +1083,7 @@
       alert(`خطأ: ${err.message}`);
       if (submitBtn) submitBtn.disabled = false;
       if (spinner) spinner.style.display = "none";
-      if (label) label.textContent = "تأكيد الطلب الآن (الدفع عند الاستلام)";
+      if (label) label.textContent = activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)";
     }
   }
 

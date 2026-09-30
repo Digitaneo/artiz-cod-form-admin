@@ -21,9 +21,11 @@ import {
 export async function loader({ request }) {
   try {
     const data = await fetchWorker(request, "/shipping/rates");
-    return { ok: true, config: data.config || {} };
+    const config = data.data?.config || data.config || {};
+    const shopCurrency = data.data?.shopCurrency || data.shopCurrency || "MAD";
+    return { ok: true, config, shopCurrency };
   } catch (err) {
-    return { ok: false, error: err.message, config: {} };
+    return { ok: false, error: err.message, config: {}, shopCurrency: "MAD" };
   }
 }
 
@@ -33,7 +35,7 @@ export async function action({ request }) {
 
   try {
     if (actionType === "importShopify") {
-      const result = await fetchWorker(request, "/shipping/import-shopify", {
+      await fetchWorker(request, "/shipping/import-shopify", {
         method: "POST"
       });
       return { ok: true, message: "تم استيراد أسعار ومناطق الشحن من شوبيفاي بنجاح!" };
@@ -45,7 +47,8 @@ export async function action({ request }) {
         method: "POST",
         body: JSON.stringify({ csvContent })
       });
-      return { ok: true, message: `تم استيراد ${result.importedCount || 0} منطقة بنجاح من ملف الـ CSV!` };
+      const count = result.data?.importedCount !== undefined ? result.data.importedCount : (result.importedCount || 0);
+      return { ok: true, message: `تم استيراد ${count} منطقة بنجاح من ملف الـ CSV!` };
     }
 
     if (actionType === "saveConfig") {
@@ -65,7 +68,7 @@ export async function action({ request }) {
 }
 
 export default function ShippingManagerPage() {
-  const { config, ok, error } = useLoaderData();
+  const { config, shopCurrency = "MAD", ok, error } = useLoaderData();
   const submit = useSubmit();
   const nav = useNavigation();
   const isLoading = nav.state === "submitting";
@@ -146,9 +149,9 @@ export default function ShippingManagerPage() {
     r.customRates ? (
       <Badge tone="info">{r.customRates}</Badge>
     ) : r.cost !== undefined ? (
-      `${r.cost} MAD`
+      `${r.cost} ${shopCurrency}`
     ) : (
-      `${defaultRate} MAD (افتراضي)`
+      `${defaultRate} ${shopCurrency} (افتراضي)`
     )
   ]);
 
@@ -200,7 +203,7 @@ export default function ShippingManagerPage() {
                 </div>
                 <div style={{ width: "200px" }}>
                   <TextField
-                    label="سعر الشحن الافتراضي (MAD)"
+                    label={`سعر الشحن الافتراضي (${shopCurrency})`}
                     type="number"
                     value={defaultRate}
                     onChange={setDefaultRate}
@@ -223,12 +226,12 @@ export default function ShippingManagerPage() {
                 <InlineStack gap="400" wrap={false}>
                   <div style={{ flex: 1 }}>
                     <TextField
-                      label="الحد الأدنى لقيمة السلة للشحن المجاني (MAD)"
+                      label={`الحد الأدنى لقيمة السلة للشحن المجاني (${shopCurrency})`}
                       type="number"
                       value={freeThreshold}
                       onChange={setFreeThreshold}
                       autoComplete="off"
-                      helpText="إذا كان إجمالي السلة أكبر أو يساوي هذا المبلغ، يصبح الشحن 0.00 د.م تلقائياً"
+                      helpText={`إذا كان إجمالي السلة أكبر أو يساوي هذا المبلغ، يصبح الشحن 0.00 ${shopCurrency} تلقائياً`}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
@@ -273,7 +276,7 @@ export default function ShippingManagerPage() {
                 />
               ) : (
                 <Banner tone="info">
-                  لا توجد أسعار مناطق مخصصة مسجلة حالياً. يتم تطبيق سعر الشحن الافتراضي ({defaultRate} MAD) أو الشحن المجاني فوق ({freeThreshold} MAD). يمكنك استيراد الأسعار من شوبيفاي أو رفع ملف CSV مثل Lightfunnels و Releasit.
+                  {`لا توجد أسعار مناطق مخصصة مسجلة حالياً. يتم تطبيق سعر الشحن الافتراضي (${defaultRate} ${shopCurrency}) أو الشحن المجاني فوق (${freeThreshold} ${shopCurrency}). يمكنك استيراد الأسعار من شوبيفاي أو رفع ملف CSV مثل Lightfunnels و Releasit.`}
                 </Banner>
               )}
             </BlockStack>

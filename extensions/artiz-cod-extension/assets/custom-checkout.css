@@ -782,3 +782,47 @@
   line-height: 1.4;
   margin: 0;
 }
+
+/* ============================================================
+   14. INLINE EMBEDDED FORM ON PRODUCT PAGE
+   ============================================================ */
+.artiz-inline-container {
+  width: 100%;
+  margin: 20px 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  background: var(--artiz-bg);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  box-sizing: border-box;
+  direction: rtl;
+  text-align: right;
+}
+
+.artiz-inline-container .artiz-modal-header {
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+  padding: 16px 20px;
+}
+
+.artiz-inline-container .artiz-modal-header h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.artiz-inline-container .artiz-close-btn {
+  display: none !important;
+}
+
+.artiz-inline-container .artiz-modal-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  transform: none !important;
+}
