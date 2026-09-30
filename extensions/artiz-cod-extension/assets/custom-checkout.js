@@ -339,10 +339,12 @@
     const origPrice = (item.original_price || item.price) / 100;
     const finalPrice = (item.final_price !== undefined ? item.final_price : item.price) / 100;
     const discounts = item.line_level_discount_allocations || item.discounts || [];
+    const hasCartDiscount = discounts.length > 0 || (origPrice > finalPrice);
+    const unitDiscount = hasCartDiscount ? Math.max(0, origPrice - finalPrice) : 0;
     const discountAmount = (item.original_line_price && item.final_line_price)
       ? ((item.original_line_price - item.final_line_price) / 100)
       : discounts.reduce((sum, d) => sum + (d.amount / 100), 0);
-    const discountTitle = discounts[0]?.discount_application?.title || discounts[0]?.title || "";
+    const discountTitle = discounts[0]?.discount_application?.title || discounts[0]?.title || "تخفيض السلة";
 
     return {
       variantId: item.variant_id,
@@ -350,6 +352,7 @@
       variantTitle: item.variant_title || "",
       originalPrice: origPrice > finalPrice ? origPrice : finalPrice,
       price: finalPrice, // The actual payable unit price!
+      unitDiscount: Number(unitDiscount.toFixed(2)),
       discountAmount,
       discountTitle,
       image: item.image || item.featured_image?.url || "",
@@ -852,7 +855,7 @@
     try {
       const affiliateData = getAffiliateTrackingData();
       const cust = getLoggedCustomer();
-      const finalAddress = isCascading && region ? `${address}, ${city}, ${region}` : address;
+      const defaultCountry = activeConfig.defaultCountry === "DZ" ? "Algeria" : "Morocco";
 
       const payload = {
         shop: currentShop,
@@ -861,21 +864,26 @@
           email: cust?.email || undefined,
           name,
           phone,
-          country: "Morocco",
+          country: defaultCountry,
           region: region || undefined,
+          province: region || undefined,
           city,
-          address: finalAddress,
+          address, // Clean address without duplicating city or region
           note
         },
         items: orderItems.map(item => ({
           variantId: item.variantId,
           quantity: item.quantity,
           price: item.price, // Exact discounted price!
-          originalPrice: item.originalPrice
+          originalPrice: item.originalPrice,
+          unitDiscount: item.unitDiscount || 0,
+          discountTitle: item.discountTitle || ""
         })),
         shippingPrice: currentCalculatedShipping.cost,
         shippingTitle: currentCalculatedShipping.title,
         discountCode: appliedDiscount?.code || "",
+        discountAmount: appliedDiscount?.type === "fixed" ? appliedDiscount.amount : undefined,
+        discountPercent: appliedDiscount?.type === "percentage" ? appliedDiscount.amount : undefined,
         affiliate: affiliateData
       };
 
