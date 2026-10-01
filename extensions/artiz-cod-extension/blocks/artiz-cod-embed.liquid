@@ -2,6 +2,33 @@
   {{ 'custom-checkout.css' | asset_url | stylesheet_tag }}
 
   {% if customer %}
+    {% assign cust_phone = customer.phone | default: customer.default_address.phone %}
+    {% if cust_phone == blank and customer.addresses.size > 0 %}
+      {% for a in customer.addresses %}
+        {% if a.phone != blank and cust_phone == blank %}
+          {% assign cust_phone = a.phone %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% assign cust_addr = customer.default_address.address1 %}
+    {% assign cust_city = customer.default_address.city %}
+    {% assign cust_province = customer.default_address.province %}
+    {% assign cust_country = customer.default_address.country %}
+
+    {% if cust_addr == blank and customer.addresses.size > 0 %}
+      {% assign cust_addr = customer.addresses.first.address1 %}
+    {% endif %}
+    {% if cust_city == blank and customer.addresses.size > 0 %}
+      {% assign cust_city = customer.addresses.first.city %}
+    {% endif %}
+    {% if cust_province == blank and customer.addresses.size > 0 %}
+      {% assign cust_province = customer.addresses.first.province %}
+    {% endif %}
+    {% if cust_country == blank and customer.addresses.size > 0 %}
+      {% assign cust_country = customer.addresses.first.country %}
+    {% endif %}
+
     <script id="artiz-logged-customer-data" type="application/json">
       {
         "id": {{ customer.id | json }},
@@ -9,10 +36,11 @@
         "firstName": {{ customer.first_name | json }},
         "lastName": {{ customer.last_name | json }},
         "email": {{ customer.email | json }},
-        "phone": {{ customer.phone | default: customer.default_address.phone | json }},
-        "address": {{ customer.default_address.address1 | json }},
-        "city": {{ customer.default_address.city | json }},
-        "country": {{ customer.default_address.country | json }}
+        "phone": {{ cust_phone | json }},
+        "address": {{ cust_addr | json }},
+        "city": {{ cust_city | json }},
+        "province": {{ cust_province | json }},
+        "country": {{ cust_country | json }}
       }
     </script>
   {% endif %}
@@ -25,6 +53,7 @@
     data-button-text="{{ block.settings.button_text | default: 'اشتري الآن - الدفع عند الاستلام' }}"
   ></div>
 
+  <script src="{{ 'artiz-locations.js' | asset_url }}" defer></script>
   <script src="{{ 'custom-checkout.js' | asset_url }}" defer></script>
 {% endif %}
 
