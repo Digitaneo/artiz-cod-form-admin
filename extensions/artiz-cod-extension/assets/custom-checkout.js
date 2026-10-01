@@ -22,30 +22,48 @@
   let currentCalculatedShipping = { cost: 0, title: "توصيل سريع لجميع المدن", isFree: false };
 
   // Regional Cascading Datasets (Loaded from modular artiz-locations.js with built-in safe fallback)
-  const REGIONAL_DATASETS = (window.ARTIZ_LOCATIONS && Object.keys(window.ARTIZ_LOCATIONS).length > 0)
-    ? window.ARTIZ_LOCATIONS
-    : {
-        "MA": {
-          name: "المغرب",
-          currency: "MAD",
-          phonePlaceholder: "مثال: 0612345678",
-          defaultRegion: "جهة الدار البيضاء - سطات",
-          regions: {
-            "جهة الدار البيضاء - سطات": ["الدار البيضاء", "المحمدية", "سطات", "برشيد", "الجديدة", "بنسليمان", "سيدي بنور", "مديونة", "النواصر", "الدروة", "بوزنيقة", "حد السوالم"],
-            "جهة الرباط - سلا - القنيطرة": ["الرباط", "سلا", "القنيطرة", "تمارة", "الصخيرات", "الخميسات", "سيدي قاسم", "سيدي سليمان", "تيفلت"],
-            "جهة طنجة - تطوان - الحسيمة": ["طنجة", "تطوان", "العرائش", "القصر الكبير", "الحسيمة", "شفشاون", "وزان", "المضيق", "الفنيدق", "أصيلة"],
-            "جهة فاس - مكناس": ["فاس", "مكناس", "تازة", "صفرو", "إفران", "تاونات", "الحاجب"],
-            "جهة مراكش - آسفي": ["مراكش", "آسفي", "الصويرة", "قلعة السراغنة", "ابن جرير", "شيشاوة", "اليوسفية"],
-            "جهة سوس - ماسة": ["أكادير", "إنزكان", "آيت ملول", "تارودانت", "أولاد تايمة", "تيزنيت"],
-            "جهة الشرق": ["وجدة", "الناظور", "بركان", "تاوريرت", "جرسيف", "الدريوش"],
-            "جهة بني ملال - خنيفرة": ["بني ملال", "خريبكة", "وادي زم", "خنيفرة", "الفقيه بن صالح"],
-            "جهة درعة - تافيلالت": ["الرشيدية", "ورزازات", "ميدلت", "تنغير", "زاكورة"],
-            "جهة كلميم - واد نون": ["كلميم", "طانطان", "سيدي إفني"],
-            "جهة العيون - الساقية الحمراء": ["العيون", "بوجدور", "السمارة", "طرفاية"],
-            "جهة الداخلة - وادي الذهب": ["الداخلة", "أوسرد"]
-          }
-        }
-      };
+  const FALLBACK_REGIONAL_DATASETS = {
+    "MA": {
+      name: "المغرب",
+      currency: "MAD",
+      phonePlaceholder: "مثال: 0612345678",
+      defaultRegion: "جهة الدار البيضاء - سطات",
+      regions: {
+        "جهة الدار البيضاء - سطات": ["الدار البيضاء", "المحمدية", "سطات", "برشيد", "الجديدة", "بنسليمان", "سيدي بنور", "مديونة", "النواصر", "الدروة", "بوزنيقة", "حد السوالم"],
+        "جهة الرباط - سلا - القنيطرة": ["الرباط", "سلا", "القنيطرة", "تمارة", "الصخيرات", "الخميسات", "سيدي قاسم", "سيدي سليمان", "تيفلت"],
+        "جهة طنجة - تطوان - الحسيمة": ["طنجة", "تطوان", "العرائش", "القصر الكبير", "الحسيمة", "شفشاون", "وزان", "المضيق", "الفنيدق", "أصيلة"],
+        "جهة فاس - مكناس": ["فاس", "مكناس", "تازة", "صفرو", "إفران", "تاونات", "الحاجب"],
+        "جهة مراكش - آسفي": ["مراكش", "آسفي", "الصويرة", "قلعة السراغنة", "ابن جرير", "شيشاوة", "اليوسفية"],
+        "جهة سوس - ماسة": ["أكادير", "إنزكان", "آيت ملول", "تارودانت", "أولاد تايمة", "تيزنيت"],
+        "جهة الشرق": ["وجدة", "الناظور", "بركان", "تاوريرت", "جرسيف", "الدريوش"],
+        "جهة بني ملال - خنيفرة": ["بني ملال", "خريبكة", "وادي زم", "خنيفرة", "الفقيه بن صالح"],
+        "جهة درعة - تافيلالت": ["الرشيدية", "ورزازات", "ميدلت", "تنغير", "زاكورة"],
+        "جهة كلميم - واد نون": ["كلميم", "طانطان", "سيدي إفني"],
+        "جهة العيون - الساقية الحمراء": ["العيون", "بوجدور", "السمارة", "طرفاية"],
+        "جهة الداخلة - وادي الذهب": ["الداخلة", "أوسرد"]
+      }
+    }
+  };
+
+  const REGIONAL_DATASETS = new Proxy({}, {
+    get: function(target, prop) {
+      const sets = (window.ARTIZ_LOCATIONS && Object.keys(window.ARTIZ_LOCATIONS).length > 0)
+        ? window.ARTIZ_LOCATIONS
+        : FALLBACK_REGIONAL_DATASETS;
+      return sets[prop];
+    }
+  });
+
+  function normalizeArabic(text) {
+    if (!text) return "";
+    return String(text)
+      .trim()
+      .replace(/[أإآ]/g, "ا")
+      .replace(/ة/g, "ه")
+      .replace(/ى/g, "ي")
+      .replace(/[\u064B-\u0652]/g, "")
+      .toLowerCase();
+  }
 
   function detectActiveCountryCode() {
     // 1. Check Shopify Market active country code (e.g. "IQ", "DZ", "MA", "SA")
@@ -275,6 +293,10 @@
     if (aInput && !aInput.value) {
       const a = getCustomerDisplayAddress();
       if (a) aInput.value = a;
+    }
+
+    if (activeConfig.addressMode === "cascading") {
+      matchCustomerCascadingLocation();
     }
 
     // Populate initial product into orderItems
@@ -776,16 +798,16 @@
 
             ${activeConfig.requiredFields?.address !== false ? `
               <div class="artiz-field-group">
-                <label>العنوان التفصيلي (الحي، الشارع، المعلم) *</label>
-                <textarea id="artiz-input-address" required placeholder="اكتب اسم الحي والشارع ورقم البناية">${getLoggedCustomer()?.address || ""}</textarea>
+                <label>العنوان التفصيلي: رقم الدار / عمارة، الزقاق، المحلة، الحي، المدينة / المحافظة *</label>
+                <textarea id="artiz-input-address" required placeholder="مثال: دار 18، زقاق 24، محلة 603، حي المنصور، بغداد">${getLoggedCustomer()?.address || ""}</textarea>
               </div>
             ` : ""}
           ` : `
             <!-- Mode 1: Classic Manual Address (Unified Shipping Engine - No City Dropdowns) -->
             ${activeConfig.requiredFields?.address !== false ? `
               <div class="artiz-field-group">
-                <label>العنوان التفصيلي (المدينة، الحي، الشارع، رقم المنزل) *</label>
-                <textarea id="artiz-input-address" required placeholder="مثال: المدينة، اسم الحي، الشارع، رقم البناية أو الشقة">${getCustomerDisplayAddress()}</textarea>
+                <label>العنوان التفصيلي: رقم الدار / عمارة، الزقاق، المحلة، الحي، المدينة / المحافظة *</label>
+                <textarea id="artiz-input-address" required placeholder="مثال: دار 18، زقاق 24، محلة 603، حي المنصور، بغداد">${getCustomerDisplayAddress()}</textarea>
               </div>
             ` : ""}
           `}
@@ -823,20 +845,7 @@
       const regionSelect = document.getElementById("artiz-input-region");
       const citySelect = document.getElementById("artiz-input-city");
       if (regionSelect && citySelect) {
-        const cust = getLoggedCustomer();
-        if (cust?.province) {
-          const matchReg = Array.from(regionSelect.options).find(o => o.value.includes(cust.province) || cust.province.includes(o.value));
-          if (matchReg) regionSelect.value = matchReg.value;
-        } else if (cust?.city) {
-          const activeCountry = detectActiveCountryCode();
-          const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
-          for (const [rName, rCities] of Object.entries(countryData.regions || {})) {
-            if (rCities.includes(cust.city)) {
-              regionSelect.value = rName;
-              break;
-            }
-          }
-        }
+        matchCustomerCascadingLocation();
 
         regionSelect.addEventListener("change", function () {
           populateCityDropdown(regionSelect.value);
@@ -845,7 +854,6 @@
         citySelect.addEventListener("change", function () {
           renderOrderItemsList();
         });
-        populateCityDropdown(regionSelect.value);
       }
     }
 
@@ -890,8 +898,120 @@
     // If customer had an existing city, pre-select it
     const custCity = getLoggedCustomer()?.city;
     if (custCity) {
-      const match = Array.from(citySelect.options).find(o => o.value === custCity);
-      if (match) citySelect.value = custCity;
+      const normCustCity = normalizeArabic(custCity);
+      const match = Array.from(citySelect.options).find(o => {
+        const no = normalizeArabic(o.value);
+        return no === normCustCity || (normCustCity.length > 2 && (no.includes(normCustCity) || normCustCity.includes(no)));
+      });
+      if (match) citySelect.value = match.value;
+    }
+  }
+
+  function matchCustomerCascadingLocation() {
+    const regionSelect = document.getElementById("artiz-input-region");
+    const citySelect = document.getElementById("artiz-input-city");
+    if (!regionSelect || !citySelect) return;
+
+    const cust = getLoggedCustomer();
+    if (!cust) {
+      populateCityDropdown(regionSelect.value);
+      return;
+    }
+
+    const activeCountry = detectActiveCountryCode();
+    const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
+    const regions = countryData.regions || {};
+
+    const custCity = (cust.city || "").trim();
+    const custProvince = (cust.province || "").trim();
+    const custAddress = (cust.address || "").trim();
+
+    const normCity = normalizeArabic(custCity);
+    const normProv = normalizeArabic(custProvince);
+    const normAddr = normalizeArabic(custAddress);
+
+    let matchedRegion = "";
+    let matchedCity = "";
+
+    // 1. Direct match: Check if customer's city matches any city in our regional datasets
+    if (normCity) {
+      for (const [rName, rCities] of Object.entries(regions)) {
+        const found = rCities.find(c => {
+          const nc = normalizeArabic(c);
+          return nc === normCity || (normCity.length > 2 && (nc.includes(normCity) || normCity.includes(nc)));
+        });
+        if (found) {
+          matchedRegion = rName;
+          matchedCity = found;
+          break;
+        }
+      }
+    }
+
+    // 2. If no city match found yet, check if custProvince matches a region name
+    if (!matchedRegion && normProv) {
+      for (const rName of Object.keys(regions)) {
+        const nr = normalizeArabic(rName);
+        if (nr === normProv || (normProv.length > 2 && (nr.includes(normProv) || normProv.includes(nr)))) {
+          matchedRegion = rName;
+          break;
+        }
+      }
+    }
+
+    // 3. Check if custCity itself matches a region/province name (e.g. city: "بغداد" -> "محافظة بغداد")
+    if (!matchedRegion && normCity) {
+      for (const rName of Object.keys(regions)) {
+        const nr = normalizeArabic(rName);
+        if (nr.includes(normCity) || normCity.includes(nr)) {
+          matchedRegion = rName;
+          break;
+        }
+      }
+    }
+
+    // 4. Scan customer's detailed address for known cities in the active country
+    if (normAddr) {
+      for (const [rName, rCities] of Object.entries(regions)) {
+        if (matchedRegion && rName !== matchedRegion) continue;
+
+        const found = rCities.find(c => {
+          const nc = normalizeArabic(c);
+          return nc.length > 2 && normAddr.includes(nc);
+        });
+        if (found) {
+          if (!matchedRegion) matchedRegion = rName;
+          if (!matchedCity) matchedCity = found;
+          break;
+        }
+      }
+    }
+
+    // Apply matched region if found in region options
+    if (matchedRegion) {
+      const rOpt = Array.from(regionSelect.options).find(o => o.value === matchedRegion);
+      if (rOpt) {
+        regionSelect.value = matchedRegion;
+      }
+    }
+
+    // Populate city dropdown for the active region
+    populateCityDropdown(regionSelect.value);
+
+    // Apply matched city to city select element
+    if (matchedCity) {
+      const cOpt = Array.from(citySelect.options).find(o => o.value === matchedCity);
+      if (cOpt) {
+        citySelect.value = matchedCity;
+      }
+    } else if (normCity) {
+      const directMatch = Array.from(citySelect.options).find(o => {
+        const no = normalizeArabic(o.value);
+        return no === normCity || (normCity.length > 2 && (no.includes(normCity) || normCity.includes(no)));
+      });
+      if (directMatch) {
+        citySelect.value = directMatch.value;
+      }
     }
   }
 
@@ -913,6 +1033,10 @@
     if (aInput && !aInput.value) {
       const a = getCustomerDisplayAddress();
       if (a) aInput.value = a;
+    }
+
+    if (activeConfig.addressMode === "cascading") {
+      matchCustomerCascadingLocation();
     }
   }
 
