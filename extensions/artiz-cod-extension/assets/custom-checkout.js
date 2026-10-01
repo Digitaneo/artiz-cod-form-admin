@@ -97,6 +97,316 @@
     return loggedCustomer;
   }
 
+  // Multilingual & Transliteration Location Aliases (English, French, Arabic & Common Neighborhoods)
+  const LOCATION_ALIASES = {
+    // Morocco Cities & Common Areas (French/English -> Arabic city & region)
+    "tanger": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "tangier": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "boukhalef": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "irfan": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "al irfan": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "malabata": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "beni makada": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "ziaten": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "charf": { city: "طنجة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "tetouan": { city: "تطوان", region: "جهة طنجة - تطوان - الحسيمة" },
+    "tétouan": { city: "تطوان", region: "جهة طنجة - تطوان - الحسيمة" },
+    "martil": { city: "تطوان", region: "جهة طنجة - تطوان - الحسيمة" },
+    "m'diq": { city: "المضيق", region: "جهة طنجة - تطوان - الحسيمة" },
+    "mdiq": { city: "المضيق", region: "جهة طنجة - تطوان - الحسيمة" },
+    "fnideq": { city: "الفنيدق", region: "جهة طنجة - تطوان - الحسيمة" },
+    "asilah": { city: "أصيلة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "assilah": { city: "أصيلة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "larache": { city: "العرائش", region: "جهة طنجة - تطوان - الحسيمة" },
+    "ksar el kebir": { city: "القصر الكبير", region: "جهة طنجة - تطوان - الحسيمة" },
+    "ksar kebir": { city: "القصر الكبير", region: "جهة طنجة - تطوان - الحسيمة" },
+    "chefchaouen": { city: "شفشاون", region: "جهة طنجة - تطوان - الحسيمة" },
+    "chaouen": { city: "شفشاون", region: "جهة طنجة - تطوان - الحسيمة" },
+    "ouazzane": { city: "وزان", region: "جهة طنجة - تطوان - الحسيمة" },
+    "al hoceima": { city: "الحسيمة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "al hoceïma": { city: "الحسيمة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "hoceima": { city: "الحسيمة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "imzouren": { city: "الحسيمة", region: "جهة طنجة - تطوان - الحسيمة" },
+    "bni bouayach": { city: "الحسيمة", region: "جهة طنجة - تطوان - الحسيمة" },
+
+    "casablanca": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "casa": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "dar bouazza": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "bouskoura": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "ain sebaa": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "sidi maarouf": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "anfa": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "maarif": { city: "الدار البيضاء", region: "جهة الدار البيضاء - سطات" },
+    "mohammedia": { city: "المحمدية", region: "جهة الدار البيضاء - سطات" },
+    "settat": { city: "سطات", region: "جهة الدار البيضاء - سطات" },
+    "berrechid": { city: "برشيد", region: "جهة الدار البيضاء - سطات" },
+    "el jadida": { city: "الجديدة", region: "جهة الدار البيضاء - سطات" },
+    "eljadida": { city: "الجديدة", region: "جهة الدار البيضاء - سطات" },
+    "benslimane": { city: "بنسليمان", region: "جهة الدار البيضاء - سطات" },
+    "sidi bennour": { city: "سيدي بنور", region: "جهة الدار البيضاء - سطات" },
+    "mediouna": { city: "مديونة", region: "جهة الدار البيضاء - سطات" },
+    "nouaceur": { city: "النواصر", region: "جهة الدار البيضاء - سطات" },
+    "deroua": { city: "الدروة", region: "جهة الدار البيضاء - سطات" },
+    "bouznika": { city: "بوزنيقة", region: "جهة الدار البيضاء - سطات" },
+    "had soualem": { city: "حد السوالم", region: "جهة الدار البيضاء - سطات" },
+
+    "rabat": { city: "الرباط", region: "جهة الرباط - سلا - القنيطرة" },
+    "agdal": { city: "الرباط", region: "جهة الرباط - سلا - القنيطرة" },
+    "hay riad": { city: "الرباط", region: "جهة الرباط - سلا - القنيطرة" },
+    "sale": { city: "سلا", region: "جهة الرباط - سلا - القنيطرة" },
+    "salé": { city: "سلا", region: "جهة الرباط - سلا - القنيطرة" },
+    "tabriquet": { city: "سلا", region: "جهة الرباط - سلا - القنيطرة" },
+    "kenitra": { city: "القنيطرة", region: "جهة الرباط - سلا - القنيطرة" },
+    "kénitra": { city: "القنيطرة", region: "جهة الرباط - سلا - القنيطرة" },
+    "mehdia": { city: "القنيطرة", region: "جهة الرباط - سلا - القنيطرة" },
+    "temara": { city: "تمارة", region: "جهة الرباط - سلا - القنيطرة" },
+    "témara": { city: "تمارة", region: "جهة الرباط - سلا - القنيطرة" },
+    "harhoura": { city: "تمارة", region: "جهة الرباط - سلا - القنيطرة" },
+    "skhirat": { city: "الصخيرات", region: "جهة الرباط - سلا - القنيطرة" },
+    "khemisset": { city: "الخميسات", region: "جهة الرباط - سلا - القنيطرة" },
+    "sidi kacem": { city: "سيدي قاسم", region: "جهة الرباط - سلا - القنيطرة" },
+    "sidi slimane": { city: "سيدي سليمان", region: "جهة الرباط - سلا - القنيطرة" },
+    "tiflet": { city: "تيفلت", region: "جهة الرباط - سلا - القنيطرة" },
+
+    "marrakech": { city: "مراكش", region: "جهة مراكش - آسفي" },
+    "marrakesh": { city: "مراكش", region: "جهة مراكش - آسفي" },
+    "gueliz": { city: "مراكش", region: "جهة مراكش - آسفي" },
+    "safi": { city: "آسفي", region: "جهة مراكش - آسفي" },
+    "essaouira": { city: "الصويرة", region: "جهة مراكش - آسفي" },
+    "kelaat sraghna": { city: "قلعة السراغنة", region: "جهة مراكش - آسفي" },
+    "benguerir": { city: "ابن جرير", region: "جهة مراكش - آسفي" },
+    "chichaoua": { city: "شيشاوة", region: "جهة مراكش - آسفي" },
+    "youssoufia": { city: "اليوسفية", region: "جهة مراكش - آسفي" },
+
+    "fes": { city: "فاس", region: "جهة فاس - مكناس" },
+    "fès": { city: "فاس", region: "جهة فاس - مكناس" },
+    "fez": { city: "فاس", region: "جهة فاس - مكناس" },
+    "meknes": { city: "مكناس", region: "جهة فاس - مكناس" },
+    "meknès": { city: "مكناس", region: "جهة فاس - مكناس" },
+    "taza": { city: "تازة", region: "جهة فاس - مكناس" },
+    "sefrou": { city: "صفرو", region: "جهة فاس - مكناس" },
+    "ifrane": { city: "إفران", region: "جهة فاس - مكناس" },
+    "taounate": { city: "تاونات", region: "جهة فاس - مكناس" },
+    "el hajeb": { city: "الحاجب", region: "جهة فاس - مكناس" },
+
+    "agadir": { city: "أكادير", region: "جهة سوس - ماسة" },
+    "taghazout": { city: "أكادير", region: "جهة سوس - ماسة" },
+    "inezgane": { city: "إنزكان", region: "جهة سوس - ماسة" },
+    "ait melloul": { city: "آيت ملول", region: "جهة سوس - ماسة" },
+    "taroudant": { city: "تارودانت", region: "جهة سوس - ماسة" },
+    "oulad teima": { city: "أولاد تايمة", region: "جهة سوس - ماسة" },
+    "tiznit": { city: "تيزنيت", region: "جهة سوس - ماسة" },
+    "dcheira": { city: "الدشيرة الجهادية", region: "جهة سوس - ماسة" },
+
+    "oujda": { city: "وجدة", region: "جهة الشرق" },
+    "nador": { city: "الناظور", region: "جهة الشرق" },
+    "berkane": { city: "بركان", region: "جهة الشرق" },
+    "taourirt": { city: "تاوريرت", region: "جهة الشرق" },
+    "guercif": { city: "جرسيف", region: "جهة الشرق" },
+    "driouch": { city: "الدريوش", region: "جهة الشرق" },
+
+    "beni mellal": { city: "بني ملال", region: "جهة بني ملال - خنيفرة" },
+    "béni mellal": { city: "بني ملال", region: "جهة بني ملال - خنيفرة" },
+    "khouribga": { city: "خريبكة", region: "جهة بني ملال - خنيفرة" },
+    "oued zem": { city: "وادي زم", region: "جهة بني ملال - خنيفرة" },
+    "khenifra": { city: "خنيفرة", region: "جهة بني ملال - خنيفرة" },
+    "fquih ben salah": { city: "الفقيه بن صالح", region: "جهة بني ملال - خنيفرة" },
+    "azilal": { city: "أزيلال", region: "جهة بني ملال - خنيفرة" },
+
+    "errachidia": { city: "الرشيدية", region: "جهة درعة - تافيلالت" },
+    "ouarzazate": { city: "ورزازات", region: "جهة درعة - تافيلالت" },
+    "midelt": { city: "ميدلت", region: "جهة درعة - تافيلالت" },
+    "tinghir": { city: "تنغير", region: "جهة درعة - تافيلالت" },
+    "zagora": { city: "زاكورة", region: "جهة درعة - تافيلالت" },
+
+    "guelmim": { city: "كلميم", region: "جهة كلميم - واد نون" },
+    "tan-tan": { city: "طانطان", region: "جهة كلميم - واد نون" },
+    "sidi ifni": { city: "سيدي إفني", region: "جهة كلميم - واد نون" },
+
+    "laayoune": { city: "العيون", region: "جهة العيون - الساقية الحمراء" },
+    "laâyoune": { city: "العيون", region: "جهة العيون - الساقية الحمراء" },
+    "boujdour": { city: "بوجدور", region: "جهة العيون - الساقية الحمراء" },
+    "dakhla": { city: "الداخلة", region: "جهة الداخلة - وادي الذهب" },
+
+    // Morocco Shopify Province codes & names
+    "tanger-tétouan-al hoceïma": { region: "جهة طنجة - تطوان - الحسيمة" },
+    "tanger-tetouan-al hoceima": { region: "جهة طنجة - تطوان - الحسيمة" },
+    "tta": { region: "جهة طنجة - تطوان - الحسيمة" },
+    "casablanca-settat": { region: "جهة الدار البيضاء - سطات" },
+    "grand casablanca": { region: "جهة الدار البيضاء - سطات" },
+    "cs": { region: "جهة الدار البيضاء - سطات" },
+    "rabat-salé-kénitra": { region: "جهة الرباط - سلا - القنيطرة" },
+    "rabat-sale-kenitra": { region: "جهة الرباط - سلا - القنيطرة" },
+    "rsk": { region: "جهة الرباط - سلا - القنيطرة" },
+    "fès-meknès": { region: "جهة فاس - مكناس" },
+    "fes-meknes": { region: "جهة فاس - مكناس" },
+    "fm": { region: "جهة فاس - مكناس" },
+    "marrakech-safi": { region: "جهة مراكش - آسفي" },
+    "ms": { region: "جهة مراكش - آسفي" },
+    "souss-massa": { region: "جهة سوس - ماسة" },
+    "sm": { region: "جهة سوس - ماسة" },
+    "béni mellal-khénifra": { region: "جهة بني ملال - خنيفرة" },
+    "beni mellal-khenifra": { region: "جهة بني ملال - خنيفرة" },
+    "drâa-tafilalet": { region: "جهة درعة - تافيلالت" },
+    "draa-tafilalet": { region: "جهة درعة - تافيلالت" },
+    "oriental": { region: "جهة الشرق" },
+    "l'oriental": { region: "جهة الشرق" },
+    "guelmim-oued noun": { region: "جهة كلميم - واد نون" },
+    "laâyoune-sakia el hamra": { region: "جهة العيون - الساقية الحمراء" },
+    "laayoune-sakia el hamra": { region: "جهة العيون - الساقية الحمراء" },
+    "dakhla-oued ed-dahab": { region: "جهة الداخلة - وادي الذهب" },
+
+    // Iraq Cities & Neighborhoods (English/Latin -> Arabic)
+    "baghdad": { city: "الرصافة", region: "محافظة بغداد" },
+    "bagdad": { city: "الكرخ", region: "محافظة بغداد" },
+    "mansour": { city: "المنصور", region: "محافظة بغداد" },
+    "al mansour": { city: "المنصور", region: "محافظة بغداد" },
+    "karrada": { city: "الكرادة", region: "محافظة بغداد" },
+    "karkh": { city: "الكرخ", region: "محافظة بغداد" },
+    "rusafa": { city: "الرصافة", region: "محافظة بغداد" },
+    "dora": { city: "الدورة", region: "محافظة بغداد" },
+    "adhamiyah": { city: "الأعظمية", region: "محافظة بغداد" },
+    "kadhimiyah": { city: "الكاظمية", region: "محافظة بغداد" },
+    "basra": { city: "البصرة المركز", region: "محافظة البصرة" },
+    "basrah": { city: "البصرة المركز", region: "محافظة البصرة" },
+    "erbil": { city: "أربيل المركز", region: "محافظة أربيل" },
+    "arbil": { city: "أربيل المركز", region: "محافظة أربيل" },
+    "hawler": { city: "أربيل المركز", region: "محافظة أربيل" },
+    "mosul": { city: "الموصل", region: "محافظة نينوى (الموصل)" },
+    "sulaymaniyah": { city: "السليمانية المركز", region: "محافظة السليمانية" },
+    "slemani": { city: "السليمانية المركز", region: "محافظة السليمانية" },
+    "duhok": { city: "دهوك المركز", region: "محافظة دهوك" },
+    "kirkuk": { city: "كركوك المركز", region: "محافظة كركوك" },
+    "najaf": { city: "النجف المركز", region: "محافظة النجف الأشرف" },
+    "karbala": { city: "كربلاء المركز", region: "محافظة كربلاء المقدسة" },
+    "hillah": { city: "الحلة المركز", region: "محافظة بابل (الحلة)" },
+    "babil": { city: "الحلة المركز", region: "محافظة بابل (الحلة)" },
+    "ramadi": { city: "الرمادي", region: "محافظة الأنبار" },
+    "fallujah": { city: "الفلوجة", region: "محافظة الأنبار" },
+    "baqubah": { city: "بعقوبة المركز", region: "محافظة ديالى" },
+    "kut": { city: "الكوت المركز", region: "محافظة واسط (الكوت)" },
+    "nasiriyah": { city: "الناصرية المركز", region: "محافظة ذي قار (الناصرية)" },
+    "amarah": { city: "العمارة المركز", region: "محافظة ميسان (العمارة)" },
+    "samawah": { city: "السماوة المركز", region: "محافظة المثنى (السماوة)" },
+    "diwaniyah": { city: "الديوانية المركز", region: "محافظة القادسية (الديوانية)" },
+    "tikrit": { city: "تكريت", region: "محافظة صلاح الدين" }
+  };
+
+  function getCustomerMatchedLocation() {
+    const cust = getLoggedCustomer();
+    const activeCountry = detectActiveCountryCode();
+    const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
+    const regions = countryData.regions || {};
+    const regionNames = Object.keys(regions);
+
+    if (!cust) {
+      const defRegion = regionNames[0] || "";
+      const defCities = regions[defRegion] || [];
+      return { region: defRegion, city: defCities[0] || "" };
+    }
+
+    const rawCity = (cust.city || "").trim();
+    const rawProv = (cust.province || "").trim();
+    const rawAddr = (cust.address || "").trim();
+
+    const lowerCity = rawCity.toLowerCase();
+    const lowerProv = rawProv.toLowerCase();
+    const lowerAddr = rawAddr.toLowerCase();
+
+    const normCity = normalizeArabic(rawCity);
+    const normProv = normalizeArabic(rawProv);
+    const normAddr = normalizeArabic(rawAddr);
+
+    let matchedRegion = "";
+    let matchedCity = "";
+
+    // 1. Direct match in LOCATION_ALIASES by City (handles English/French like "Tanger", "Boukhalef", "Casablanca")
+    if (lowerCity && LOCATION_ALIASES[lowerCity]) {
+      const alias = LOCATION_ALIASES[lowerCity];
+      if (alias.region && regions[alias.region]) {
+        matchedRegion = alias.region;
+        matchedCity = alias.city || "";
+      }
+    }
+
+    // 2. Direct Arabic match: Check if customer's city matches any city in our regional datasets
+    if (!matchedCity && normCity) {
+      for (const [rName, rCities] of Object.entries(regions)) {
+        const found = rCities.find(c => {
+          const nc = normalizeArabic(c);
+          return nc === normCity || (normCity.length > 2 && (nc.includes(normCity) || normCity.includes(nc)));
+        });
+        if (found) {
+          matchedRegion = rName;
+          matchedCity = found;
+          break;
+        }
+      }
+    }
+
+    // 3. Match in LOCATION_ALIASES by Province (e.g. "Tanger-Tétouan-Al Hoceïma", "TTA", "Grand Casablanca")
+    if (!matchedRegion && lowerProv) {
+      for (const [aliasKey, aliasVal] of Object.entries(LOCATION_ALIASES)) {
+        if (lowerProv === aliasKey || lowerProv.includes(aliasKey) || aliasKey.includes(lowerProv)) {
+          if (aliasVal.region && regions[aliasVal.region]) {
+            matchedRegion = aliasVal.region;
+            if (aliasVal.city) matchedCity = aliasVal.city;
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Check Arabic province match
+    if (!matchedRegion && normProv) {
+      for (const rName of regionNames) {
+        const nr = normalizeArabic(rName);
+        if (nr === normProv || (normProv.length > 2 && (nr.includes(normProv) || normProv.includes(nr)))) {
+          matchedRegion = rName;
+          break;
+        }
+      }
+    }
+
+    // 5. Scan address for LOCATION_ALIASES keywords (e.g. "Al Irfan 2 Boukhalef 42" -> matches "boukhalef" or "irfan" -> Tanger!)
+    if (!matchedCity && lowerAddr) {
+      for (const [aliasKey, aliasVal] of Object.entries(LOCATION_ALIASES)) {
+        if (aliasKey.length > 2 && lowerAddr.includes(aliasKey)) {
+          if (aliasVal.region && regions[aliasVal.region]) {
+            matchedRegion = aliasVal.region;
+            matchedCity = aliasVal.city || "";
+            break;
+          }
+        }
+      }
+    }
+
+    // 6. Scan address for Arabic cities in active country
+    if (!matchedCity && normAddr) {
+      for (const [rName, rCities] of Object.entries(regions)) {
+        if (matchedRegion && rName !== matchedRegion) continue;
+        const found = rCities.find(c => {
+          const nc = normalizeArabic(c);
+          return nc.length > 2 && normAddr.includes(nc);
+        });
+        if (found) {
+          if (!matchedRegion) matchedRegion = rName;
+          matchedCity = found;
+          break;
+        }
+      }
+    }
+
+    // Final safe fallbacks
+    if (!matchedRegion) matchedRegion = regionNames[0] || "";
+    const regCities = regions[matchedRegion] || ["المركز", "أخرى"];
+    if (!matchedCity || !regCities.includes(matchedCity)) {
+      matchedCity = regCities[0] || "";
+    }
+
+    return { region: matchedRegion, city: matchedCity };
+  }
+
   function escapeRegex(str) {
     return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -715,6 +1025,12 @@
     const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
     const regionNames = Object.keys(countryData.regions);
 
+    // Auto-resolve customer's matching region and city before rendering HTML
+    const matchedLoc = getCustomerMatchedLocation();
+    const initialRegion = matchedLoc.region || regionNames[0];
+    const initialCities = countryData.regions[initialRegion] || ["المركز", "أخرى"];
+    const initialCity = matchedLoc.city || initialCities[0];
+
     // Contextual labels based on detected country
     const regionLabel = activeCountry === "IQ" ? "المحافظة *" : (activeCountry === "DZ" ? "الولاية *" : "الولاية / الجهة *");
     const cityLabel = activeCountry === "IQ" ? "المدينة / القضاء *" : (activeCountry === "DZ" ? "المدينة / البلدية *" : "المدينة / الإقليم *");
@@ -783,7 +1099,7 @@
               <div class="artiz-field-group">
                 <label>${regionLabel}</label>
                 <select id="artiz-input-region" required>
-                  ${regionNames.map(r => `<option value="${r}">${r}</option>`).join("")}
+                  ${regionNames.map(r => `<option value="${r}" ${r === initialRegion ? "selected" : ""}>${r}</option>`).join("")}
                   <option value="other">أخرى...</option>
                 </select>
               </div>
@@ -791,7 +1107,8 @@
               <div class="artiz-field-group">
                 <label>${cityLabel}</label>
                 <select id="artiz-input-city" required>
-                  <!-- Populated dynamically on region change -->
+                  ${initialCities.map(c => `<option value="${c}" ${c === initialCity ? "selected" : ""}>${c}</option>`).join("")}
+                  <option value="other">مدينة / قضاء أخرى...</option>
                 </select>
               </div>
             </div>
@@ -912,105 +1229,28 @@
     const citySelect = document.getElementById("artiz-input-city");
     if (!regionSelect || !citySelect) return;
 
-    const cust = getLoggedCustomer();
-    if (!cust) {
-      populateCityDropdown(regionSelect.value);
+    const matchedLoc = getCustomerMatchedLocation();
+    if (!matchedLoc.region) {
+      if (citySelect.children.length === 0) {
+        populateCityDropdown(regionSelect.value);
+      }
       return;
     }
 
-    const activeCountry = detectActiveCountryCode();
-    const countryData = REGIONAL_DATASETS[activeCountry] || REGIONAL_DATASETS["MA"];
-    const regions = countryData.regions || {};
-
-    const custCity = (cust.city || "").trim();
-    const custProvince = (cust.province || "").trim();
-    const custAddress = (cust.address || "").trim();
-
-    const normCity = normalizeArabic(custCity);
-    const normProv = normalizeArabic(custProvince);
-    const normAddr = normalizeArabic(custAddress);
-
-    let matchedRegion = "";
-    let matchedCity = "";
-
-    // 1. Direct match: Check if customer's city matches any city in our regional datasets
-    if (normCity) {
-      for (const [rName, rCities] of Object.entries(regions)) {
-        const found = rCities.find(c => {
-          const nc = normalizeArabic(c);
-          return nc === normCity || (normCity.length > 2 && (nc.includes(normCity) || normCity.includes(nc)));
-        });
-        if (found) {
-          matchedRegion = rName;
-          matchedCity = found;
-          break;
-        }
-      }
-    }
-
-    // 2. If no city match found yet, check if custProvince matches a region name
-    if (!matchedRegion && normProv) {
-      for (const rName of Object.keys(regions)) {
-        const nr = normalizeArabic(rName);
-        if (nr === normProv || (normProv.length > 2 && (nr.includes(normProv) || normProv.includes(nr)))) {
-          matchedRegion = rName;
-          break;
-        }
-      }
-    }
-
-    // 3. Check if custCity itself matches a region/province name (e.g. city: "بغداد" -> "محافظة بغداد")
-    if (!matchedRegion && normCity) {
-      for (const rName of Object.keys(regions)) {
-        const nr = normalizeArabic(rName);
-        if (nr.includes(normCity) || normCity.includes(nr)) {
-          matchedRegion = rName;
-          break;
-        }
-      }
-    }
-
-    // 4. Scan customer's detailed address for known cities in the active country
-    if (normAddr) {
-      for (const [rName, rCities] of Object.entries(regions)) {
-        if (matchedRegion && rName !== matchedRegion) continue;
-
-        const found = rCities.find(c => {
-          const nc = normalizeArabic(c);
-          return nc.length > 2 && normAddr.includes(nc);
-        });
-        if (found) {
-          if (!matchedRegion) matchedRegion = rName;
-          if (!matchedCity) matchedCity = found;
-          break;
-        }
-      }
-    }
-
-    // Apply matched region if found in region options
-    if (matchedRegion) {
-      const rOpt = Array.from(regionSelect.options).find(o => o.value === matchedRegion);
+    if (regionSelect.value !== matchedLoc.region) {
+      const rOpt = Array.from(regionSelect.options).find(o => o.value === matchedLoc.region);
       if (rOpt) {
-        regionSelect.value = matchedRegion;
+        regionSelect.value = matchedLoc.region;
+        populateCityDropdown(matchedLoc.region);
       }
+    } else if (citySelect.children.length === 0) {
+      populateCityDropdown(regionSelect.value);
     }
 
-    // Populate city dropdown for the active region
-    populateCityDropdown(regionSelect.value);
-
-    // Apply matched city to city select element
-    if (matchedCity) {
-      const cOpt = Array.from(citySelect.options).find(o => o.value === matchedCity);
+    if (matchedLoc.city && citySelect.value !== matchedLoc.city) {
+      const cOpt = Array.from(citySelect.options).find(o => o.value === matchedLoc.city);
       if (cOpt) {
-        citySelect.value = matchedCity;
-      }
-    } else if (normCity) {
-      const directMatch = Array.from(citySelect.options).find(o => {
-        const no = normalizeArabic(o.value);
-        return no === normCity || (normCity.length > 2 && (no.includes(normCity) || normCity.includes(no)));
-      });
-      if (directMatch) {
-        citySelect.value = directMatch.value;
+        citySelect.value = matchedLoc.city;
       }
     }
   }
@@ -1019,9 +1259,6 @@
     if (!document.getElementById("artiz-modal-overlay")) {
       injectModalContainer();
     }
-    renderOrderItemsList();
-    const overlay = document.getElementById("artiz-modal-overlay");
-    if (overlay) overlay.classList.add("artiz-active");
 
     // Auto-populate customer phone and address if empty
     const pInput = document.getElementById("artiz-input-phone");
@@ -1038,6 +1275,10 @@
     if (activeConfig.addressMode === "cascading") {
       matchCustomerCascadingLocation();
     }
+
+    renderOrderItemsList();
+    const overlay = document.getElementById("artiz-modal-overlay");
+    if (overlay) overlay.classList.add("artiz-active");
   }
 
   function closeArtizModal() {
