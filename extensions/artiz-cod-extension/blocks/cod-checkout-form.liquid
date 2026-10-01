@@ -98,7 +98,28 @@
   </button>
 </div>
 
-<script src="{{ 'artiz-locations.js' | asset_url }}" defer></script>
+{% assign detected_country = localization.country.iso_code | default: shop.country_code | default: 'MA' | upcase %}
+
+{% case detected_country %}
+  {% when 'DZ' %}
+    <script src="{{ 'locations-dz.js' | asset_url }}" defer></script>
+  {% when 'IQ' %}
+    <script src="{{ 'locations-iq.js' | asset_url }}" defer></script>
+  {% when 'SA' %}
+    <script src="{{ 'locations-sa.js' | asset_url }}" defer></script>
+  {% else %}
+    <script src="{{ 'locations-ma.js' | asset_url }}" defer></script>
+{% endcase %}
+
+<script id="artiz-location-manifest" type="application/json">
+  {
+    "MA": {{ 'locations-ma.js' | asset_url | json }},
+    "DZ": {{ 'locations-dz.js' | asset_url | json }},
+    "IQ": {{ 'locations-iq.js' | asset_url | json }},
+    "SA": {{ 'locations-sa.js' | asset_url | json }}
+  }
+</script>
+
 <script src="{{ 'custom-checkout.js' | asset_url }}" defer></script>
 
 {% schema %}
