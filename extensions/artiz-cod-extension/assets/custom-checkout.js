@@ -79,26 +79,36 @@
     return loggedCustomer;
   }
 
+  function escapeRegex(str) {
+    return String(str || "").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function getCustomerPhone() {
     const cust = getLoggedCustomer();
-    if (cust?.phone) return cust.phone;
-    try {
-      return localStorage.getItem("artiz_customer_phone") || "";
-    } catch (_) {
-      return "";
+    if (cust && cust.phone && String(cust.phone).trim() !== "") {
+      return String(cust.phone).trim();
     }
+    try {
+      const saved = localStorage.getItem("artiz_customer_phone");
+      if (saved && String(saved).trim() !== "") return String(saved).trim();
+    } catch (_) {}
+    return "";
   }
 
   function getCustomerDisplayAddress() {
     const cust = getLoggedCustomer();
     if (!cust) return "";
-    const addr = (cust.address || "").trim();
-    const city = (cust.city || "").trim();
+    let addr = (cust.address || "").trim();
+    let city = (cust.city || "").trim();
+
     if (city && addr) {
-      if (addr.toLowerCase().includes(city.toLowerCase())) {
-        return addr;
-      }
-      return `${city}، ${addr}`;
+      // Clean up any existing duplicate city in addr (e.g. "الحسيمة، بني احمد اوكزان، الحسيمة")
+      const cityRegexStart = new RegExp(`^${escapeRegex(city)}[\\s،,-]+`, "i");
+      const cityRegexEnd = new RegExp(`[\\s،,-]+${escapeRegex(city)}$`, "i");
+      addr = addr.replace(cityRegexStart, "").replace(cityRegexEnd, "").trim();
+
+      // Show street first, then city (e.g. "بني احمد اوكزان، الحسيمة")
+      return addr ? `${addr}، ${city}` : city;
     }
     return addr || city || "";
   }
@@ -254,6 +264,18 @@
     }
 
     bindFormEvents();
+
+    // Auto-populate customer phone and address if empty
+    const pInput = document.getElementById("artiz-input-phone");
+    if (pInput && !pInput.value) {
+      const p = getCustomerPhone();
+      if (p) pInput.value = p;
+    }
+    const aInput = document.getElementById("artiz-input-address");
+    if (aInput && !aInput.value) {
+      const a = getCustomerDisplayAddress();
+      if (a) aInput.value = a;
+    }
 
     // Populate initial product into orderItems
     if (productForm) {
@@ -880,6 +902,18 @@
     renderOrderItemsList();
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
+
+    // Auto-populate customer phone and address if empty
+    const pInput = document.getElementById("artiz-input-phone");
+    if (pInput && !pInput.value) {
+      const p = getCustomerPhone();
+      if (p) pInput.value = p;
+    }
+    const aInput = document.getElementById("artiz-input-address");
+    if (aInput && !aInput.value) {
+      const a = getCustomerDisplayAddress();
+      if (a) aInput.value = a;
+    }
   }
 
   function closeArtizModal() {
@@ -1278,22 +1312,53 @@
     // Accurate Region & City resolution (Never lose customer's registered city!)
     let region = "";
     let city = "";
+    let cleanAddress = address;
 
     if (isCascading) {
       region = document.getElementById("artiz-input-region")?.value.trim() || cust?.province || "";
       city = document.getElementById("artiz-input-city")?.value.trim() || cust?.city || defaultCities[activeCountryCode] || "الدار البيضاء";
+      cleanAddress = address;
     } else {
       // Manual address mode:
-      // 1. If customer has a registered city in Shopify (e.g. "الحسيمة"), keep and preserve it
-      if (cust?.city) {
+      const countryData = REGIONAL_DATASETS[activeCountryCode] || REGIONAL_DATASETS["MA"];
+      const allCities = Object.values(countryData.regions || {}).flat();
+
+      // Sort cities by length descending so multi-word/longer cities match first (e.g. "بغداد الجديدة" before "بغداد")
+      const sortedCities = [...allCities].sort((a, b) => b.length - a.length);
+
+      // 1. Search for any known city in the typed address
+      const matchedCity = sortedCities.find(c => {
+        const re = new RegExp(`(^|[،,\\s-])${escapeRegex(c)}([،,\\s-]|$)`, "i");
+        return re.test(address);
+      });
+
+      if (matchedCity) {
+        city = matchedCity;
+        // Strip the matched city from cleanAddress so Shopify doesn't repeat it in address1 and city!
+        const startRe = new RegExp(`^${escapeRegex(matchedCity)}[\\s،,-]+`, "i");
+        const endRe = new RegExp(`[\\s،,-]+${escapeRegex(matchedCity)}$`, "i");
+        const stripped = address.replace(startRe, "").replace(endRe, "").trim();
+        if (stripped.length >= 2) {
+          cleanAddress = stripped;
+        }
+      } else if (cust?.city) {
         city = cust.city;
-        region = cust.province || "";
+        const startRe = new RegExp(`^${escapeRegex(city)}[\\s،,-]+`, "i");
+        const endRe = new RegExp(`[\\s،,-]+${escapeRegex(city)}$`, "i");
+        const stripped = address.replace(startRe, "").replace(endRe, "").trim();
+        if (stripped.length >= 2) {
+          cleanAddress = stripped;
+        }
       } else {
-        // 2. Scan typed address for any recognized city from the country dataset
-        const countryData = REGIONAL_DATASETS[activeCountryCode] || REGIONAL_DATASETS["MA"];
-        const allCities = Object.values(countryData.regions || {}).flat();
-        const matchedCity = allCities.find(c => address.toLowerCase().includes(c.toLowerCase()));
-        city = matchedCity || defaultCities[activeCountryCode] || "الدار البيضاء";
+        city = defaultCities[activeCountryCode] || "الدار البيضاء";
+      }
+
+      // Automatically deduce province/region from the city
+      for (const [rName, rCities] of Object.entries(countryData.regions || {})) {
+        if (rCities.includes(city)) {
+          region = rName;
+          break;
+        }
       }
     }
 
@@ -1320,7 +1385,7 @@
           region: region || undefined,
           province: region || undefined,
           city,
-          address, // Clean address without duplicating city or region
+          address: cleanAddress, // Pure street address without duplicating city
           note
         },
         items: orderItems.map(item => ({

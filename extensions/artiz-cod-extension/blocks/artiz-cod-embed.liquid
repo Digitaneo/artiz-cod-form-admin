@@ -2,37 +2,75 @@
   {{ 'custom-checkout.css' | asset_url | stylesheet_tag }}
 
   {% if customer %}
-    {% assign cust_phone = customer.phone | default: customer.default_address.phone %}
-    {% if cust_phone == blank and customer.addresses.size > 0 %}
-      {% for a in customer.addresses %}
-        {% if a.phone != blank and cust_phone == blank %}
-          {% assign cust_phone = a.phone %}
+    {% assign cust_phone = '' %}
+    {% if customer.phone != blank and customer.phone != '' %}
+      {% assign cust_phone = customer.phone %}
+    {% elsif customer.default_address and customer.default_address.phone != blank and customer.default_address.phone != '' %}
+      {% assign cust_phone = customer.default_address.phone %}
+    {% else %}
+      {% for addr in customer.addresses %}
+        {% if addr.phone != blank and addr.phone != '' and cust_phone == '' %}
+          {% assign cust_phone = addr.phone %}
         {% endif %}
       {% endfor %}
     {% endif %}
 
-    {% assign cust_addr = customer.default_address.address1 %}
-    {% assign cust_city = customer.default_address.city %}
-    {% assign cust_province = customer.default_address.province %}
-    {% assign cust_country = customer.default_address.country %}
+    {% assign cust_addr = '' %}
+    {% if customer.default_address and customer.default_address.address1 != blank and customer.default_address.address1 != '' %}
+      {% assign cust_addr = customer.default_address.address1 %}
+    {% else %}
+      {% for addr in customer.addresses %}
+        {% if addr.address1 != blank and addr.address1 != '' and cust_addr == '' %}
+          {% assign cust_addr = addr.address1 %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
 
-    {% if cust_addr == blank and customer.addresses.size > 0 %}
-      {% assign cust_addr = customer.addresses.first.address1 %}
+    {% assign cust_city = '' %}
+    {% if customer.default_address and customer.default_address.city != blank and customer.default_address.city != '' %}
+      {% assign cust_city = customer.default_address.city %}
+    {% else %}
+      {% for addr in customer.addresses %}
+        {% if addr.city != blank and addr.city != '' and cust_city == '' %}
+          {% assign cust_city = addr.city %}
+        {% endif %}
+      {% endfor %}
     {% endif %}
-    {% if cust_city == blank and customer.addresses.size > 0 %}
-      {% assign cust_city = customer.addresses.first.city %}
+
+    {% assign cust_province = '' %}
+    {% if customer.default_address and customer.default_address.province != blank and customer.default_address.province != '' %}
+      {% assign cust_province = customer.default_address.province %}
+    {% else %}
+      {% for addr in customer.addresses %}
+        {% if addr.province != blank and addr.province != '' and cust_province == '' %}
+          {% assign cust_province = addr.province %}
+        {% endif %}
+      {% endfor %}
     {% endif %}
-    {% if cust_province == blank and customer.addresses.size > 0 %}
-      {% assign cust_province = customer.addresses.first.province %}
+
+    {% assign cust_country = '' %}
+    {% if customer.default_address and customer.default_address.country != blank and customer.default_address.country != '' %}
+      {% assign cust_country = customer.default_address.country %}
+    {% else %}
+      {% for addr in customer.addresses %}
+        {% if addr.country != blank and addr.country != '' and cust_country == '' %}
+          {% assign cust_country = addr.country %}
+        {% endif %}
+      {% endfor %}
     {% endif %}
-    {% if cust_country == blank and customer.addresses.size > 0 %}
-      {% assign cust_country = customer.addresses.first.country %}
+
+    {% assign cust_name = customer.name %}
+    {% if cust_name == blank or cust_name == '' %}
+      {% assign cust_name = customer.first_name | append: ' ' | append: customer.last_name | strip %}
+    {% endif %}
+    {% if cust_name == blank or cust_name == '' and customer.default_address %}
+      {% assign cust_name = customer.default_address.name %}
     {% endif %}
 
     <script id="artiz-logged-customer-data" type="application/json">
       {
         "id": {{ customer.id | json }},
-        "name": {{ customer.name | json }},
+        "name": {{ cust_name | json }},
         "firstName": {{ customer.first_name | json }},
         "lastName": {{ customer.last_name | json }},
         "email": {{ customer.email | json }},
