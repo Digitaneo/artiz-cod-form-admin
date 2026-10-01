@@ -14,90 +14,119 @@
    1. TRIGGER BUTTONS (Product Page & Cart)
    ============================================================ */
 .artiz-dual-actions {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin: 12px 0;
-  box-sizing: border-box;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 14px 0 !important;
+  box-sizing: border-box !important;
+  clear: both !important;
 }
 
+/* Base button styling - exactly identical dimensions, font, and alignment */
+.artiz-btn,
 .artiz-dual-actions .artiz-secondary-btn,
 .artiz-dual-actions .artiz-cod-trigger-btn {
-  flex: 1;
-  min-width: 0;
-  height: 52px;
-  margin: 0;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  white-space: nowrap;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  max-height: 52px !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: var(--artiz-radius, 10px) !important;
+  font-family: inherit !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  user-select: none !important;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
+.artiz-btn-icon {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
+
+/* 1. Secondary Button (أضف إلى السلة) */
+.artiz-btn-secondary,
 .artiz-secondary-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 13px 20px;
-  background-color: #ffffff;
+  background: #ffffff !important;
   color: #1e293b !important;
-  font-size: 15px;
-  font-weight: 700;
-  border: 1.5px solid #cbd5e1;
-  border-radius: var(--artiz-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-  text-decoration: none;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04) !important;
 }
 
-.artiz-secondary-btn:hover {
-  background-color: #f8fafc;
-  border-color: #94a3b8;
+.artiz-btn-secondary:hover:not(:disabled),
+.artiz-secondary-btn:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.artiz-btn-secondary:hover .artiz-btn-icon,
+.artiz-secondary-btn:hover .artiz-btn-icon {
+  transform: scale(1.1);
+}
+
+.artiz-btn-secondary:active:not(:disabled),
+.artiz-secondary-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
 }
 
 .artiz-secondary-btn.artiz-added {
-  background-color: #f0fdf4;
-  border-color: #22c55e;
+  background: #f0fdf4 !important;
+  border-color: #22c55e !important;
   color: #15803d !important;
 }
 
+/* 2. Primary Button (اشتري الآن - الدفع عند الاستلام) */
+.artiz-btn-primary,
 .artiz-cod-trigger-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  padding: 14px 24px;
-  margin-top: 4px;
-  margin-bottom: 4px;
-  background-color: var(--artiz-primary);
+  background: var(--artiz-primary, #008060) !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(0, 0, 0, 0.06) 100%) !important;
   color: #ffffff !important;
-  font-size: 16px;
-  font-weight: 700;
-  border: none;
-  border-radius: var(--artiz-radius);
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 128, 96, 0.25);
-  transition: all 0.25s ease;
-  text-decoration: none;
-  box-sizing: border-box;
+  border: 1.5px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 14px rgba(0, 128, 96, 0.28) !important;
 }
 
-.artiz-cod-trigger-btn:hover {
-  background-color: var(--artiz-primary-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 128, 96, 0.35);
+.artiz-btn-primary:hover:not(:disabled),
+.artiz-cod-trigger-btn:hover:not(:disabled) {
+  background-color: var(--artiz-primary-hover, #006e52) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(0, 128, 96, 0.38) !important;
+}
+
+.artiz-btn-primary:hover .artiz-btn-icon,
+.artiz-cod-trigger-btn:hover .artiz-btn-icon {
+  transform: scale(1.12);
+}
+
+.artiz-btn-primary:active:not(:disabled),
+.artiz-cod-trigger-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
 }
 
 /* Pulse animation for high conversion */
 .artiz-pulse {
-  animation: artizPulse 2s infinite;
+  animation: artizPulse 2.4s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
 @keyframes artizPulse {
@@ -106,6 +135,7 @@
   100% { transform: scale(1); }
 }
 
+/* 3. Out-of-stock badge and graceful disabled button styling */
 .artiz-stock-out-badge {
   display: inline-block;
   background-color: #fee2e2;
@@ -121,15 +151,46 @@
 }
 
 .artiz-btn-disabled,
+.artiz-btn:disabled,
 .artiz-cod-trigger-btn:disabled,
 .artiz-secondary-btn:disabled {
-  opacity: 0.55 !important;
+  opacity: 0.6 !important;
   cursor: not-allowed !important;
   box-shadow: none !important;
   transform: none !important;
-  background-color: #e2e8f0 !important;
-  color: #64748b !important;
-  border-color: #cbd5e1 !important;
+  pointer-events: auto !important;
+  background: #f1f5f9 !important;
+  color: #94a3b8 !important;
+  border: 1.5px solid #cbd5e1 !important;
+}
+
+/* 4. Responsive Mobile Mode - Stacked vertically (واحدة فوق بعض) */
+@media screen and (max-width: 768px) {
+  .artiz-dual-actions {
+    flex-direction: column !important;
+    gap: 10px !important;
+    margin: 12px 0 !important;
+  }
+
+  .artiz-dual-actions .artiz-cod-trigger-btn {
+    order: 1 !important;
+    width: 100% !important;
+    flex: none !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 15.5px !important;
+  }
+
+  .artiz-dual-actions .artiz-secondary-btn {
+    order: 2 !important;
+    width: 100% !important;
+    flex: none !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+    font-size: 15px !important;
+  }
 }
 
 /* ============================================================

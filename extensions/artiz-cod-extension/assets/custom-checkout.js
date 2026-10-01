@@ -341,8 +341,14 @@
     const addCartBtn = document.createElement("button");
     addCartBtn.type = "button";
     addCartBtn.id = "artiz-product-add-cart-btn";
-    addCartBtn.className = "artiz-secondary-btn";
-    addCartBtn.innerHTML = `<span id="artiz-add-cart-text">أضف إلى السلة</span>`;
+    addCartBtn.className = "artiz-btn artiz-btn-secondary artiz-secondary-btn";
+    addCartBtn.innerHTML = `
+      <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+      </svg>
+      <span id="artiz-add-cart-text">أضف إلى السلة</span>
+    `;
 
     addCartBtn.addEventListener("click", async function (e) {
       e.preventDefault();
@@ -352,7 +358,13 @@
     const buyNowBtn = document.createElement("button");
     buyNowBtn.type = "button";
     buyNowBtn.id = "artiz-direct-buy-btn";
-    buyNowBtn.innerHTML = `<span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>`;
+    buyNowBtn.className = "artiz-btn artiz-btn-primary artiz-cod-trigger-btn artiz-pulse";
+    buyNowBtn.innerHTML = `
+      <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+      </svg>
+      <span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>
+    `;
 
     buyNowBtn.addEventListener("click", async function (e) {
       e.preventDefault();
