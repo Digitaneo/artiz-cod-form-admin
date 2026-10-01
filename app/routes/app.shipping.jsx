@@ -161,23 +161,65 @@ export default function ShippingManagerPage() {
       (r.countryCode || "").toLowerCase().includes(q) ||
       (r.region || "").toLowerCase().includes(q) ||
       (r.city || "").toLowerCase().includes(q) ||
-      (r.area || "").toLowerCase().includes(q)
+      (r.deliveryMethod || r.area || "").toLowerCase().includes(q) ||
+      (r.customRates || "").toLowerCase().includes(q)
     );
   });
 
-  const tableRows = filteredRates.map(r => [
-    r.countryCode || "MA",
-    r.region || "-",
-    r.city || "-",
-    r.area || "-",
-    r.customRates ? (
-      <Badge tone="info">{r.customRates}</Badge>
-    ) : r.cost !== undefined ? (
-      `${r.cost} ${shopCurrency}`
-    ) : (
-      `${defaultRate} ${shopCurrency} (افتراضي)`
-    )
-  ]);
+  const tableRows = filteredRates.map(r => {
+    // Delivery Method column rendering
+    let methodCell = <Badge tone="subdued">🚚 توصيل موحد / قياسي</Badge>;
+    if (r.customRates && String(r.customRates).includes(":")) {
+      const parts = String(r.customRates).split("|").map(p => p.split(":")[0]?.trim());
+      methodCell = (
+        <InlineStack gap="100" wrap>
+          {parts.map((p, idx) => (
+            <Badge key={idx} tone="info">
+              {p.includes("مكتب") || p.toLowerCase().includes("desk") ? `🏢 ${p}` : `🏠 ${p}`}
+            </Badge>
+          ))}
+        </InlineStack>
+      );
+    } else {
+      const m = (r.deliveryMethod || r.area || "").trim();
+      if (m && m !== "-") {
+        const isDesk = m.includes("مكتب") || m.toLowerCase().includes("desk");
+        methodCell = (
+          <Badge tone={isDesk ? "attention" : "success"}>
+            {isDesk ? `🏢 ${m}` : `🏠 ${m}`}
+          </Badge>
+        );
+      }
+    }
+
+    // Cost column rendering
+    let costCell = `${defaultRate} ${shopCurrency} (افتراضي)`;
+    if (r.customRates && String(r.customRates).includes(":")) {
+      const parts = String(r.customRates).split("|");
+      costCell = (
+        <InlineStack gap="100" wrap>
+          {parts.map((p, idx) => {
+            const [name, price] = p.split(":");
+            return (
+              <Badge key={idx} tone="success">
+                {`${name?.trim()}: ${price?.trim()} ${shopCurrency}`}
+              </Badge>
+            );
+          })}
+        </InlineStack>
+      );
+    } else if (r.cost !== undefined && r.cost !== null) {
+      costCell = `${r.cost} ${shopCurrency}`;
+    }
+
+    return [
+      r.countryCode || "MA",
+      r.region || "-",
+      r.city || "-",
+      methodCell,
+      costCell
+    ];
+  });
 
   return (
     <AppLayout title="Shipping & Delivery" subtitle="Smart COD Delivery Engine, Custom Regional Rates & CSV Importer">
@@ -321,7 +363,7 @@ export default function ShippingManagerPage() {
               {tableRows.length > 0 ? (
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "text"]}
-                  headings={["الدولة", "الولاية / الجهة", "المدينة", "المنطقة / الحي", "سعر الشحن"]}
+                  headings={["الدولة", "الولاية / الجهة", "المدينة", "طريقة الاستلام / نوع التوصيل", "سعر الشحن"]}
                   rows={tableRows}
                 />
               ) : (
@@ -353,64 +395,40 @@ export default function ShippingManagerPage() {
           <Modal.Section>
             <BlockStack gap="400">
               <Text as="p">
-                يمكنك تحميل أو تطبيق نماذج جاهزة لأسعار التوصيل بنقرة واحدة، أو لصق محتوى ملف CSV الخاص بشركات التوصيل لديك:
+                نموذج إرشادي جاهز لأسعار جهة الدار البيضاء ومدنها وفق معيار النظام. يمكنك نسخه وتعديل أسماء المدن والمحافظات أو رمز الدولة (مثلاً <code>LY</code> لليبيا أو <code>DZ</code> للجزائر) بكل سهولة:
               </Text>
 
               <InlineStack gap="300">
                 <Button
                   size="slim"
                   onClick={() => {
-                    setCsvText(`Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
-MA,Casablanca-Settat,الدار البيضاء,,rate,20,توصيل سريع:20|استلام من المكتب:15
-MA,Casablanca-Settat,المحمدية,,rate,25,توصيل للمنزل:25
-MA,Casablanca-Settat,سطات,,rate,30,توصيل للمنزل:30
-MA,Casablanca-Settat,الجديدة,,rate,30,توصيل للمنزل:30
-MA,Rabat-Sale-Kenitra,الرباط,,rate,25,توصيل سريع:25|استلام من المكتب:20
-MA,Rabat-Sale-Kenitra,سلا,,rate,25,توصيل للمنزل:25
-MA,Rabat-Sale-Kenitra,القنيطرة,,rate,30,توصيل للمنزل:30
-MA,Marrakech-Safi,مراكش,,rate,30,توصيل سريع:30|استلام من المكتب:20
-MA,Tanger-Tetouan-Al Hoceima,طنجة,,rate,30,توصيل سريع:30|استلام من المكتب:20
-MA,Fes-Meknes,فاس,,rate,30,توصيل سريع:30|استلام من المكتب:20
-MA,Souss-Massa,أكادير,,rate,35,توصيل سريع:35|استلام من المكتب:25
-MA,Oriental,وجدة,,rate,35,توصيل للمنزل:35
-MA,Sahara,العيون,,rate,45,توصيل للمنزل:45`);
+                    setCsvText(`Country_code,Region,City,Delivery_method,Rate_or_extra,Cost,Custom_rates
+MA,جهة الدار البيضاء - سطات,الدار البيضاء,توصيل للمنزل / استلام مكتب,rate,,توصيل للمنزل:35|استلام من المكتب (Stop Desk):25
+MA,جهة الدار البيضاء - سطات,المحمدية,توصيل للمنزل / استلام مكتب,rate,,توصيل للمنزل:35|استلام من المكتب (Stop Desk):25
+MA,جهة الدار البيضاء - سطات,مديونة,توصيل للمنزل,rate,25,
+MA,جهة الدار البيضاء - سطات,النواصر,توصيل للمنزل,rate,25,
+MA,جهة الدار البيضاء - سطات,الدروة,توصيل للمنزل,rate,25,
+MA,جهة الدار البيضاء - سطات,بوزنيقة,توصيل للمنزل,rate,30,
+MA,جهة الدار البيضاء - سطات,حد السوالم,توصيل للمنزل,rate,30,
+MA,جهة الدار البيضاء - سطات,برشيد,توصيل للمنزل,rate,35,
+MA,جهة الدار البيضاء - سطات,سطات,توصيل للمنزل,rate,35,
+MA,جهة الدار البيضاء - سطات,الجديدة,توصيل للمنزل,rate,35,
+MA,جهة الدار البيضاء - سطات,بنسليمان,توصيل للمنزل,rate,35,
+MA,جهة الدار البيضاء - سطات,سيدي بنور,توصيل للمنزل,rate,40,`);
                   }}
                 >
-                  🇲🇦 تحميل نموذج المغرب (Morocco Preset)
-                </Button>
-
-                <Button
-                  size="slim"
-                  onClick={() => {
-                    setCsvText(`Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates
-DZ,16 Alger,,,rate,,توصيل للمنزل:400|استلام من المكتب Stop Desk:250
-DZ,09 Blida,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
-DZ,31 Oran,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
-DZ,25 Constantine,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
-DZ,19 Setif,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
-DZ,15 Tizi Ouzou,,,rate,,توصيل للمنزل:500|استلام من المكتب Stop Desk:300
-DZ,06 Bejaia,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
-DZ,13 Tlemcen,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
-DZ,23 Annaba,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
-DZ,35 Boumerdes,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
-DZ,42 Tipaza,,,rate,,توصيل للمنزل:450|استلام من المكتب Stop Desk:250
-DZ,05 Batna,,,rate,,توصيل للمنزل:550|استلام من المكتب Stop Desk:350
-DZ,07 Biskra,,,rate,,توصيل للمنزل:650|استلام من المكتب Stop Desk:450
-DZ,30 Ouargla,,,rate,,توصيل للمنزل:750|استلام من المكتب Stop Desk:550
-DZ,01 Adrar,,,rate,,توصيل للمنزل:950|استلام من المكتب Stop Desk:700`);
-                  }}
-                >
-                  🇩🇿 تحميل نموذج الجزائر (Algeria Preset)
+                  📋 تحميل نموذج جهة الدار البيضاء ومدنها (نموذج إرشادي جاهز للتعديل)
                 </Button>
               </InlineStack>
 
               <TextField
                 label="محتوى ملف الـ CSV"
-                multiline={8}
+                multiline={9}
                 value={csvText}
                 onChange={setCsvText}
-                placeholder="Country_code,Region,City,Area,Rate_or_extra,Cost,Custom_rates..."
+                placeholder="Country_code,Region,City,Delivery_method,Rate_or_extra,Cost,Custom_rates..."
                 autoComplete="off"
+                helpText="يمكن لأي متجر (في ليبيا أو الجزائر أو العراق أو غيرها) نسخ هذا النموذج وتعديل رمز الدولة والمحافظات والمدن وطرق التوصيل ثم استيراده بنقرة واحدة."
               />
             </BlockStack>
           </Modal.Section>

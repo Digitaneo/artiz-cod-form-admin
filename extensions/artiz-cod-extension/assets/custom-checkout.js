@@ -1134,11 +1134,25 @@
         freeShippingContainer.innerHTML = "";
       }
 
-      // Methods options: match regional custom rates only if addressMode === "cascading"
+      // Methods options: match regional custom rates in cascading mode OR from typed/detected city in manual mode
       let methods = null;
-      if (activeConfig.addressMode === "cascading" && activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
-        const cityVal = (document.getElementById("artiz-input-city")?.value || "").trim().toLowerCase();
-        const regionVal = (document.getElementById("artiz-input-region")?.value || "").trim().toLowerCase();
+      if (activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
+        let cityVal = "";
+        let regionVal = "";
+        if (activeConfig.addressMode === "cascading") {
+          cityVal = (document.getElementById("artiz-input-city")?.value || "").trim().toLowerCase();
+          regionVal = (document.getElementById("artiz-input-region")?.value || "").trim().toLowerCase();
+        } else {
+          // Manual mode: detect city from address input or logged-in customer
+          const rawAddr = (document.getElementById("artiz-input-address")?.value || "").trim().toLowerCase();
+          const cust = getLoggedCustomer();
+          if (cust?.city) {
+            cityVal = cust.city.trim().toLowerCase();
+          } else {
+            const foundRate = activeShippingConfig.rates.find(r => r.city && rawAddr.includes(r.city.toLowerCase()));
+            if (foundRate) cityVal = foundRate.city.toLowerCase();
+          }
+        }
 
         const matchedRate = activeShippingConfig.rates.find(r => {
           if (cityVal && (r.city || "").trim().toLowerCase() === cityVal) return true;
@@ -1153,7 +1167,7 @@
               return { id: `custom_${idx}`, title: t.trim(), price: Number(pr.trim() || 0) };
             });
           } else if (matchedRate.cost !== undefined && matchedRate.cost !== null) {
-            methods = [{ id: "standard", title: matchedRate.title || shippingGen.defaultTitle || "توصيل قياسي", price: Number(matchedRate.cost) }];
+            methods = [{ id: "standard", title: matchedRate.deliveryMethod || matchedRate.title || shippingGen.defaultTitle || "توصيل قياسي", price: Number(matchedRate.cost) }];
           }
         }
       }
