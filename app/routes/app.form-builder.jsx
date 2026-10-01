@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLoaderData, useActionData, useNavigation, useSubmit } from "react-router";
 import { fetchWorker } from "../services/api.server";
 import AppLayout from "../components/AppLayout";
@@ -99,7 +99,28 @@ export default function FormBuilderPage() {
     Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, مكناس, وجدة, أخرى")
   );
 
+  const [saveFeedback, setSaveFeedback] = useState(null);
+
+  useEffect(() => {
+    if (actionData?.message) {
+      setSaveFeedback({ message: actionData.message, error: false, timestamp: Date.now() });
+      if (typeof window !== "undefined" && window.shopify?.toast) {
+        window.shopify.toast.show(actionData.message);
+      }
+      const timer = setTimeout(() => setSaveFeedback(null), 4000);
+      return () => clearTimeout(timer);
+    } else if (actionData?.error) {
+      setSaveFeedback({ message: actionData.error, error: true, timestamp: Date.now() });
+      if (typeof window !== "undefined" && window.shopify?.toast) {
+        window.shopify.toast.show(actionData.error, { isError: true });
+      }
+      const timer = setTimeout(() => setSaveFeedback(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionData]);
+
   const handleSave = () => {
+    setSaveFeedback(null);
     const payload = {
       displayMode,
       buttonText,
@@ -168,15 +189,14 @@ export default function FormBuilderPage() {
         }
       >
         <BlockStack gap="400">
-          {actionData?.message && (
-            <Banner tone="success" title="تم الحفظ بنجاح">
-              <Text as="p">{actionData.message}</Text>
-            </Banner>
-          )}
-
-          {actionData?.error && (
-            <Banner tone="critical" title="حدث خطأ أثناء الحفظ">
-              <Text as="p">{actionData.error}</Text>
+          {saveFeedback && (
+            <Banner
+              key={saveFeedback.timestamp}
+              tone={saveFeedback.error ? "critical" : "success"}
+              title={saveFeedback.error ? "حدث خطأ أثناء الحفظ" : "تم الحفظ بنجاح"}
+              onDismiss={() => setSaveFeedback(null)}
+            >
+              <Text as="p">{saveFeedback.message}</Text>
             </Banner>
           )}
 

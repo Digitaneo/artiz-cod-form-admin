@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLoaderData, useSubmit, useNavigation } from "react-router";
+import { useState, useEffect } from "react";
+import { useLoaderData, useActionData, useSubmit, useNavigation } from "react-router";
 import { fetchWorker } from "../services/api.server";
 import AppLayout from "../components/AppLayout";
 import {
@@ -70,9 +70,30 @@ export async function action({ request }) {
 
 export default function ShippingManagerPage() {
   const { config, shopCurrency = "MAD", ok, error } = useLoaderData();
+  const actionData = useActionData();
   const submit = useSubmit();
   const nav = useNavigation();
   const isLoading = nav.state === "submitting";
+
+  const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    if (actionData?.message) {
+      setFeedback({ message: actionData.message, error: false, timestamp: Date.now() });
+      if (typeof window !== "undefined" && window.shopify?.toast) {
+        window.shopify.toast.show(actionData.message);
+      }
+      const timer = setTimeout(() => setFeedback(null), 4000);
+      return () => clearTimeout(timer);
+    } else if (actionData?.error) {
+      setFeedback({ message: actionData.error, error: true, timestamp: Date.now() });
+      if (typeof window !== "undefined" && window.shopify?.toast) {
+        window.shopify.toast.show(actionData.error, { isError: true });
+      }
+      const timer = setTimeout(() => setFeedback(null), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionData]);
 
   const general = config.general || {
     enabled: true,
@@ -119,6 +140,7 @@ export default function ShippingManagerPage() {
   };
 
   const handleSave = () => {
+    setFeedback(null);
     const updatedConfig = {
       ...config,
       general: {
@@ -140,6 +162,7 @@ export default function ShippingManagerPage() {
   };
 
   const handleImportShopify = () => {
+    setFeedback(null);
     const fd = new FormData();
     fd.append("actionType", "importShopify");
     submit(fd, { method: "POST" });
@@ -147,6 +170,7 @@ export default function ShippingManagerPage() {
 
   const handleImportCsv = () => {
     if (!csvText.trim()) return;
+    setFeedback(null);
     const fd = new FormData();
     fd.append("actionType", "importCsv");
     fd.append("csvContent", csvText);
@@ -242,6 +266,16 @@ export default function ShippingManagerPage() {
         ]}
       >
         <BlockStack gap="500">
+          {feedback && (
+            <Banner
+              key={feedback.timestamp}
+              tone={feedback.error ? "critical" : "success"}
+              title={feedback.error ? "حدث خطأ" : "تمت العملية بنجاح"}
+              onDismiss={() => setFeedback(null)}
+            >
+              <Text as="p">{feedback.message}</Text>
+            </Banner>
+          )}
           {error && <Banner tone="critical">{error}</Banner>}
 
           <Card>

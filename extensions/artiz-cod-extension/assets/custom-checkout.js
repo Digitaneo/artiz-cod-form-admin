@@ -352,7 +352,6 @@
     const buyNowBtn = document.createElement("button");
     buyNowBtn.type = "button";
     buyNowBtn.id = "artiz-direct-buy-btn";
-    buyNowBtn.className = "artiz-cod-trigger-btn artiz-pulse";
     buyNowBtn.innerHTML = `<span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>`;
 
     buyNowBtn.addEventListener("click", async function (e) {
@@ -369,6 +368,9 @@
     } else {
       productForm.appendChild(container);
     }
+
+    updateProductPageItems(productForm);
+    watchVariantChanges(productForm);
   }
 
   function setupInlineProductForm(productForm) {
@@ -422,19 +424,63 @@
       matchCustomerCascadingLocation();
     }
 
-    // Populate initial product into orderItems
+    // Populate initial product into orderItems and observe variant changes
     if (productForm) {
       updateProductPageItems(productForm);
+      watchVariantChanges(productForm);
+    }
+  }
 
-      // Watch for variant / qty changes in product form
-      productForm.addEventListener("change", function () {
-        setTimeout(() => updateProductPageItems(productForm), 80);
-      });
-      productForm.addEventListener("input", function (e) {
-        if (e.target && e.target.name === "quantity") {
-          setTimeout(() => updateProductPageItems(productForm), 50);
-        }
-      });
+  function watchVariantChanges(productForm) {
+    if (!productForm || productForm._artizVariantWatched) return;
+    productForm._artizVariantWatched = true;
+
+    const onVariantChange = () => {
+      setTimeout(() => updateProductPageItems(productForm), 60);
+    };
+
+    productForm.addEventListener("change", onVariantChange);
+    productForm.addEventListener("input", function (e) {
+      if (e.target && (e.target.name === "quantity" || e.target.name === "id")) {
+        onVariantChange();
+      }
+    });
+
+    // Global listener for modern theme variant selectors (radios, selects, swatches, pills)
+    document.addEventListener("change", function (e) {
+      if (e.target && (
+        e.target.name === "id" ||
+        (e.target.name && e.target.name.startsWith("options[")) ||
+        e.target.closest("variant-radios, variant-selects, .variant-picker, .product-form")
+      )) {
+        onVariantChange();
+      }
+    });
+
+    // Theme custom events (e.g. Dawn variant:change)
+    document.addEventListener("variant:change", onVariantChange);
+
+    // Watch for URL variant changes (?variant=...)
+    window.addEventListener("popstate", onVariantChange);
+    if (!history._artizVariantPatched) {
+      history._artizVariantPatched = true;
+      const origPush = history.pushState;
+      history.pushState = function () {
+        origPush.apply(this, arguments);
+        onVariantChange();
+      };
+      const origReplace = history.replaceState;
+      history.replaceState = function () {
+        origReplace.apply(this, arguments);
+        onVariantChange();
+      };
+    }
+
+    // Observe hidden variant id attribute mutations
+    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
+    if (variantInput && window.MutationObserver) {
+      const observer = new MutationObserver(onVariantChange);
+      observer.observe(variantInput, { attributes: true, attributeFilter: ["value"] });
     }
   }
 
@@ -445,18 +491,22 @@
   };
 
   async function updateProductPageItems(productForm) {
+    if (!productForm) return;
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
-    const variantId = variantInput ? variantInput.value : null;
+    let variantId = variantInput ? variantInput.value : null;
+    if (!variantId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      variantId = urlParams.get("variant");
+    }
     const qtyInput = productForm.querySelector('input[name="quantity"]');
     const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
-
-    if (!variantId) return;
 
     let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
     let catalogPrice = 0;
     let catalogComparePrice = 0;
     let image = "";
     let variantTitle = "";
+    let isAvailable = true;
 
     try {
       const pathname = window.location.pathname;
@@ -468,6 +518,8 @@
         image = pData.featured_image || "";
         const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
         if (variantObj) {
+          variantId = variantObj.id;
+          isAvailable = variantObj.available !== false;
           catalogPrice = variantObj.price / 100;
           catalogComparePrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : catalogPrice;
           variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
@@ -478,6 +530,57 @@
       }
     } catch (e) {
       console.warn("Could not fetch product details", e);
+    }
+
+    if (!variantId) return;
+
+    // Update Storefront Dual Action Buttons according to inventory
+    const addCartBtn = document.getElementById("artiz-product-add-cart-btn");
+    const buyNowBtn = document.getElementById("artiz-direct-buy-btn");
+    const blockTriggerBtn = document.getElementById("artiz-block-trigger-btn");
+
+    if (!isAvailable) {
+      if (addCartBtn) {
+        addCartBtn.disabled = true;
+        addCartBtn.classList.add("artiz-btn-disabled");
+        const tSpan = addCartBtn.querySelector("#artiz-add-cart-text") || addCartBtn;
+        tSpan.textContent = "نفذ من المخزون";
+      }
+      if (buyNowBtn) {
+        buyNowBtn.disabled = true;
+        buyNowBtn.classList.add("artiz-btn-disabled");
+        buyNowBtn.classList.remove("artiz-pulse");
+        const tSpan = buyNowBtn.querySelector("#artiz-buy-now-text") || buyNowBtn;
+        tSpan.textContent = "نفذ من المخزون";
+      }
+      if (blockTriggerBtn) {
+        blockTriggerBtn.disabled = true;
+        blockTriggerBtn.classList.add("artiz-btn-disabled");
+        blockTriggerBtn.classList.remove("artiz-pulse");
+        const span = blockTriggerBtn.querySelector("span") || blockTriggerBtn;
+        span.textContent = "نفذ من المخزون";
+      }
+    } else {
+      if (addCartBtn) {
+        addCartBtn.disabled = false;
+        addCartBtn.classList.remove("artiz-btn-disabled");
+        const tSpan = addCartBtn.querySelector("#artiz-add-cart-text") || addCartBtn;
+        tSpan.textContent = "أضف إلى السلة";
+      }
+      if (buyNowBtn) {
+        buyNowBtn.disabled = false;
+        buyNowBtn.classList.remove("artiz-btn-disabled");
+        buyNowBtn.classList.add("artiz-pulse");
+        const tSpan = buyNowBtn.querySelector("#artiz-buy-now-text") || buyNowBtn;
+        tSpan.textContent = activeConfig?.buttonText || "اطلب الآن - الدفع عند الاستلام";
+      }
+      if (blockTriggerBtn) {
+        blockTriggerBtn.disabled = false;
+        blockTriggerBtn.classList.remove("artiz-btn-disabled");
+        blockTriggerBtn.classList.add("artiz-pulse");
+        const span = blockTriggerBtn.querySelector("span") || blockTriggerBtn;
+        span.textContent = activeConfig?.buttonText || "اشتري الآن - الدفع عند الاستلام";
+      }
     }
 
     // Inspect Active Cart Items
@@ -497,7 +600,7 @@
       }
     } catch (_) {}
 
-    // Build Current Product with full cart discount awareness
+    // Build Current Product with full cart discount awareness and accurate stock status
     let currentProduct;
     if (matchingCartItem) {
       const mapped = mapCartItemToOrderItem(matchingCartItem);
@@ -518,7 +621,8 @@
         originalPrice: effectiveOriginal,
         autoDiscountPercent,
         hasAutoDiscount,
-        image: mapped.image || image
+        image: mapped.image || image,
+        available: isAvailable
       };
     } else {
       currentProduct = {
@@ -534,7 +638,8 @@
         hasAutoDiscount: false,
         image,
         quantity,
-        isCurrentProduct: true
+        isCurrentProduct: true,
+        available: isAvailable
       };
     }
 
@@ -543,18 +648,35 @@
   }
 
   async function handleAddToCart(productForm, btn) {
-    const textSpan = btn.querySelector("#artiz-add-cart-text");
+    const textSpan = btn.querySelector("#artiz-add-cart-text") || btn;
     const origText = textSpan ? textSpan.textContent : "أضف إلى السلة";
+
+    // 1. Proactively check if currently selected variant is out of stock
+    const currentProduct = orderItems.find(i => i.isCurrentProduct);
+    if ((currentProduct && currentProduct.available === false) || btn.disabled) {
+      alert("عذراً، هذا الخيار أو المتغير (القياس/اللون) نفذ من المخزون حالياً ولا يمكن إضافته للسلة.");
+      return;
+    }
 
     if (textSpan) textSpan.textContent = "جاري الإضافة...";
     btn.disabled = true;
 
     try {
       const formData = new FormData(productForm);
-      await fetch("/cart/add.js", {
+      const res = await fetch("/cart/add.js", {
         method: "POST",
         body: formData
       });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const errMsg = errJson.description || errJson.message || "عذراً، نفذت كمية هذا المنتج من المخزون.";
+        alert(errMsg);
+        if (textSpan) textSpan.textContent = "نفذ من المخزون";
+        btn.disabled = true;
+        btn.classList.add("artiz-btn-disabled");
+        return;
+      }
 
       if (textSpan) textSpan.textContent = "تمت الإضافة بنجاح ✓";
       setTimeout(() => {
@@ -580,7 +702,11 @@
 
   async function handleDirectProductBuy(productForm) {
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
-    const variantId = variantInput ? variantInput.value : null;
+    let variantId = variantInput ? variantInput.value : null;
+    if (!variantId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      variantId = urlParams.get("variant");
+    }
     const qtyInput = productForm.querySelector('input[name="quantity"]');
     const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
 
@@ -592,6 +718,7 @@
       let originalPrice = 0;
       let image = "";
       let variantTitle = "";
+      let isAvailable = true;
 
       try {
         const pathname = window.location.pathname;
@@ -603,6 +730,7 @@
           image = pData.featured_image || "";
           const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
           if (variantObj) {
+            isAvailable = variantObj.available !== false;
             price = variantObj.price / 100;
             originalPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
             variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
@@ -615,6 +743,11 @@
         console.warn("Could not fetch product details", e);
       }
 
+      if (!isAvailable) {
+        alert("عذراً، هذا المنتج أو المتغير (القياس/اللون) نفذ من المخزون حالياً ولا يمكن طلبه.");
+        return;
+      }
+
       currentProduct = {
         variantId,
         title,
@@ -622,7 +755,9 @@
         price,
         originalPrice: originalPrice > price ? originalPrice : price,
         image,
-        quantity
+        quantity,
+        available: isAvailable,
+        isCurrentProduct: true
       };
     }
 
@@ -1145,6 +1280,7 @@
           <div class="artiz-item-info">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
               <p class="artiz-item-title" style="margin:0;">${currentProduct.title}</p>
+              ${currentProduct.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
               ${autoDiscPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoDiscPercent}%</span>` : ""}
             </div>
             ${currentProduct.variantTitle ? `<p class="artiz-item-variant">${currentProduct.variantTitle}</p>` : ""}
@@ -1189,6 +1325,7 @@
                   <div class="artiz-item-info">
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
                       <p class="artiz-item-title" style="margin:0;">${item.title}</p>
+                      ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
                       ${itemAutoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${itemAutoPercent}%</span>` : ""}
                     </div>
                     ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
@@ -1223,6 +1360,7 @@
             <div class="artiz-item-info">
               <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
                 <p class="artiz-item-title" style="margin:0;">${item.title}</p>
+                ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
                 ${autoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoPercent}%</span>` : ""}
               </div>
               ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
@@ -1416,6 +1554,30 @@
         <span class="artiz-total-val">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
       </div>
     `;
+
+    // Check if any order item is sold out and block the submit button
+    const hasSoldOut = orderItems.some(i => i.available === false);
+    const submitBtn = document.getElementById("artiz-submit-order-btn");
+    if (submitBtn) {
+      if (hasSoldOut) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add("artiz-btn-disabled");
+        submitBtn.style.opacity = "0.55";
+        submitBtn.style.cursor = "not-allowed";
+        const span = submitBtn.querySelector("span") || submitBtn;
+        if (!submitBtn._origLabel) submitBtn._origLabel = span.textContent;
+        span.textContent = "عذراً، يحتوي طلبك على منتجات نفذت من المخزون";
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("artiz-btn-disabled");
+        submitBtn.style.opacity = "1";
+        submitBtn.style.cursor = "pointer";
+        const span = submitBtn.querySelector("span") || submitBtn;
+        if (submitBtn._origLabel) {
+          span.textContent = submitBtn._origLabel;
+        }
+      }
+    }
   }
 
   window.artizSelectShippingMethod = function (methodId) {
@@ -1466,6 +1628,12 @@
 
     if (orderItems.length === 0) {
       alert("يرجى إضافة منتجات للطلب.");
+      return;
+    }
+
+    const soldOutItem = orderItems.find(i => i.available === false);
+    if (soldOutItem) {
+      alert(`عذراً، المنتج "${soldOutItem.title}${soldOutItem.variantTitle ? ` (${soldOutItem.variantTitle})` : ''}" نفذ من المخزون حالياً ولا يمكن إتمام طلبه.`);
       return;
     }
 
