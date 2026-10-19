@@ -20,6 +20,8 @@
   let storeCurrency = "MAD";
   let selectedShippingMethod = null;
   let currentCalculatedShipping = { cost: 0, title: "توصيل سريع لجميع المدن", isFree: false };
+  let activePaymentConfig = null;
+  let selectedPaymentMethod = "cod";
 
   // Regional Locations & Datasets (Loaded modularly per country via window.ARTIZ_LOCATIONS)
   window.ARTIZ_LOCATIONS = window.ARTIZ_LOCATIONS || {};
@@ -256,7 +258,7 @@
   async function initArtizCOD() {
     const rootEl = document.getElementById("artiz-cod-global-root") || document.getElementById("artiz-cod-form-wrapper");
     currentShop = rootEl?.dataset.shop || window.Shopify?.shop || window.location.hostname;
-    storeCurrency = window.Shopify?.currency?.active || "MAD";
+    storeCurrency = rootEl?.dataset.currency || window.Shopify?.currency?.active || "IQD";
 
     // Load store configuration and shipping settings from Worker
     try {
@@ -264,6 +266,10 @@
       const json = await res.json();
       activeConfig = json.data?.formConfig || json.formConfig || getFallbackConfig();
       activeShippingConfig = json.data?.shippingConfig || null;
+      activePaymentConfig = json.data?.paymentConfig || null;
+      if (activePaymentConfig?.defaultMethod) {
+        selectedPaymentMethod = activePaymentConfig.defaultMethod;
+      }
       if (activeShippingConfig?.shopCurrency) {
         storeCurrency = activeShippingConfig.shopCurrency;
       } else if (window.Shopify?.currency?.active) {
@@ -1096,14 +1102,102 @@
             </div>
           ` : ""}
 
+          <!-- Multi-Payment Methods Selector -->
+          ${renderPaymentMethodsSelector()}
+
           <button type="submit" id="artiz-submit-order-btn" class="artiz-submit-button">
             <span id="artiz-btn-spinner" class="artiz-spinner" style="display:none;"></span>
-            <span id="artiz-btn-label">${activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)"}</span>
+            <span id="artiz-btn-label">${getSubmitButtonLabel()}</span>
           </button>
         </form>
       </div>
     `;
   }
+
+  function getSubmitButtonLabel() {
+    if (selectedPaymentMethod === "wayl") return "الانتقال إلى الدفع الإلكتروني 🔒";
+    if (selectedPaymentMethod === "whatsapp") return "تأكيد وإرسال الطلب عبر واتساب 💬";
+    if (selectedPaymentMethod === "edfapay" || selectedPaymentMethod === "network_intl") return "المتابعة لإتمام الدفع 💳";
+    return activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)";
+  }
+
+  function renderPaymentMethodsSelector() {
+    const methods = activePaymentConfig?.methods || {
+      cod: { id: "cod", enabled: true, title: "الدفع عند الاستلام", subtitle: "💵 ادفع بكل أمان وقت استلام المنتج.", badge: "نقدي", icon: "cash" },
+      wayl: { id: "wayl", enabled: false, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — 3D Secure", badge: "دفع آمن 100%", icon: "electronic" }
+    };
+
+    const enabledKeys = (activePaymentConfig?.enabledMethods || ["cod"]).filter(k => methods[k]?.enabled === true);
+
+    // If 1 or 0 methods are active, DO NOT show selector!
+    if (enabledKeys.length <= 1) {
+      if (enabledKeys.length === 1) {
+        selectedPaymentMethod = enabledKeys[0];
+      } else {
+        selectedPaymentMethod = "cod";
+      }
+      return "";
+    }
+
+    if (!enabledKeys.includes(selectedPaymentMethod)) {
+      selectedPaymentMethod = enabledKeys[0] || "cod";
+    }
+
+    return `
+      <div class="artiz-payment-methods-section">
+        <label class="artiz-payment-methods-title">طريقة الدفع والتأكيد *</label>
+        <div class="artiz-payment-cards-grid">
+          ${enabledKeys.map(key => {
+            const m = methods[key] || {};
+            const isSelected = selectedPaymentMethod === key;
+            const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
+
+            return `
+              <div class="artiz-payment-card ${isSelected ? 'active' : ''}" data-method="${key}" onclick="window.artizSelectPaymentMethod('${key}')">
+                <div class="artiz-pay-radio-col">
+                  <input type="radio" name="artiz_payment_choice" value="${key}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); window.artizSelectPaymentMethod('${key}');">
+                </div>
+                <div class="artiz-pay-info-col">
+                  <div class="artiz-pay-header-row">
+                    <span class="artiz-pay-icon">${iconBadge}</span>
+                    <strong class="artiz-pay-name">${m.title || key}</strong>
+                    ${m.badge ? `<span class="artiz-pay-badge">${m.badge}</span>` : ''}
+                  </div>
+                  ${m.subtitle ? `<p class="artiz-pay-subtitle">${m.subtitle}</p>` : ''}
+                  ${key === 'wayl' ? `
+                    <div class="artiz-pay-gateways-logos">
+                      <span class="artiz-brand-tag">MasterCard</span>
+                      <span class="artiz-brand-tag">Visa</span>
+                      <span class="artiz-brand-tag">ZainCash</span>
+                      <span class="artiz-brand-tag">FIB</span>
+                      <span class="artiz-brand-tag">FastPay</span>
+                      <span class="artiz-brand-tag">Qi Card</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  window.artizSelectPaymentMethod = function(methodKey) {
+    selectedPaymentMethod = methodKey;
+    const cards = document.querySelectorAll(".artiz-payment-card");
+    cards.forEach(card => {
+      const match = card.getAttribute("data-method") === methodKey;
+      card.classList.toggle("active", match);
+      const radio = card.querySelector("input[type='radio']");
+      if (radio) radio.checked = match;
+    });
+
+    const label = document.getElementById("artiz-btn-label");
+    if (label) {
+      label.textContent = getSubmitButtonLabel();
+    }
+  };
 
   function bindFormEvents() {
     // Close events
@@ -1773,7 +1867,9 @@
         discountCode: appliedDiscount?.code || "",
         discountAmount: appliedDiscount?.type === "fixed" ? appliedDiscount.amount : undefined,
         discountPercent: appliedDiscount?.type === "percentage" ? appliedDiscount.amount : undefined,
-        affiliate: affiliateData
+        affiliate: affiliateData,
+        paymentMethod: selectedPaymentMethod,
+        currency: storeCurrency
       };
 
       const res = await fetch(`${WORKER_URL}/public/checkout`, {
@@ -1788,7 +1884,28 @@
         throw new Error(data.error || "فشل تسجيل الطلب، يرجى المحاولة لاحقاً.");
       }
 
-      // Order created successfully! Clear cart
+      // 1. Electronic Payment Redirect (Wayl / Cards)
+      if (data.data?.redirectUrl) {
+        if (label) label.textContent = "جاري نقلك لبوابة الدفع الآمنة...";
+        try {
+          await fetch("/cart/clear.js", { method: "POST" });
+        } catch (_) {}
+        window.location.href = data.data.redirectUrl;
+        return;
+      }
+
+      // 2. WhatsApp Direct Order
+      if (selectedPaymentMethod === "whatsapp" && data.data?.whatsappUrl) {
+        try {
+          await fetch("/cart/clear.js", { method: "POST" });
+        } catch (_) {}
+        window.open(data.data.whatsappUrl, "_blank");
+        const thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
+        window.location.href = thankYouUrl;
+        return;
+      }
+
+      // 3. Standard COD Order
       try {
         await fetch("/cart/clear.js", { method: "POST" });
       } catch (_) {}
@@ -1800,7 +1917,7 @@
       alert(`خطأ: ${err.message}`);
       if (submitBtn) submitBtn.disabled = false;
       if (spinner) spinner.style.display = "none";
-      if (label) label.textContent = activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)";
+      if (label) label.textContent = getSubmitButtonLabel();
     }
   }
 

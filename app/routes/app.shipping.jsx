@@ -23,10 +23,10 @@ export async function loader({ request }) {
   try {
     const data = await fetchWorker(request, "/shipping/rates");
     const config = data.data?.config || data.config || {};
-    const shopCurrency = data.data?.shopCurrency || data.shopCurrency || "MAD";
+    const shopCurrency = data.data?.shopCurrency || data.shopCurrency || "USD";
     return { ok: true, config, shopCurrency };
   } catch (err) {
-    return { ok: false, error: err.message, config: {}, shopCurrency: "MAD" };
+    return { ok: false, error: err.message, config: {}, shopCurrency: "USD" };
   }
 }
 

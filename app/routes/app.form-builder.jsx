@@ -99,6 +99,11 @@ export default function FormBuilderPage() {
     Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, مكناس, وجدة, أخرى")
   );
 
+  const [enableCod, setEnableCod] = useState(config.paymentMethods?.methods?.cod?.enabled !== false);
+  const [enableWayl, setEnableWayl] = useState(config.paymentMethods?.methods?.wayl?.enabled !== false);
+  const [enableWhatsapp, setEnableWhatsapp] = useState(config.paymentMethods?.methods?.whatsapp?.enabled !== false);
+  const [whatsappPhone, setWhatsappPhone] = useState(config.paymentMethods?.methods?.whatsapp?.phone || "9647700000000");
+
   const [saveFeedback, setSaveFeedback] = useState(null);
 
   useEffect(() => {
@@ -132,6 +137,19 @@ export default function FormBuilderPage() {
       directBuyTrigger,
       cartDrawerTrigger,
       addressMode,
+      paymentMethods: {
+        enabledMethods: [
+          enableCod ? "cod" : null,
+          enableWayl ? "wayl" : null,
+          enableWhatsapp ? "whatsapp" : null
+        ].filter(Boolean),
+        defaultMethod: enableCod ? "cod" : (enableWayl ? "wayl" : "whatsapp"),
+        methods: {
+          cod: { enabled: enableCod, title: "الدفع عند الاستلام", subtitle: "💵 ادفع بكل أمان وقت استلام المنتج.", badge: "نقدي", icon: "cash" },
+          wayl: { enabled: enableWayl, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — 3D Secure", badge: "دفع آمن 100%", icon: "electronic", customDomain: "" },
+          whatsapp: { enabled: false, title: "طلب مباشر عبر واتساب", subtitle: "تأكيد الطلب والتفاصيل مباشرة مع المتجر", badge: "تواصل سريع", icon: "whatsapp", phone: whatsappPhone }
+        }
+      },
       requiredFields: {
         name: reqName,
         phone: reqPhone,
@@ -351,10 +369,93 @@ export default function FormBuilderPage() {
             </BlockStack>
           </Card>
 
-          {/* 4. Styling & Texts */}
+          {/* 4. Payment Gateways & Methods */}
           <Card>
             <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">4. نصوص وألوان النموذج (Texts & Colors)</Text>
+              <InlineStack align="space-between">
+                <Text variant="headingMd" as="h2">4. وسائل وبوابات الدفع (Payment Gateways & Methods)</Text>
+                <Badge tone="info">نظام الدفع المتعدد</Badge>
+              </InlineStack>
+              <Text as="p" tone="subdued">
+                تحكم في وسائل الدفع المتاحة لعملائك داخل نافذة الطلب وتخصيص كل وسيلة بحرية:
+              </Text>
+
+              <BlockStack gap="300">
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                      <Text variant="bodyMd" fontWeight="bold">💵 الدفع عند الاستلام (Cash on Delivery)</Text>
+                      <Text variant="bodySm" tone="subdued">ادفع نقداً عند استلام شحنتك من المندوب. ينشئ الطلب فوراً في شوبيفاي.</Text>
+                    </BlockStack>
+                    <Checkbox label="مفعل" checked={enableCod} onChange={setEnableCod} />
+                  </InlineStack>
+                </Box>
+
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodyMd" fontWeight="bold">💳 دفع إلكتروني - WAYL</Text>
+                        <Badge tone="success">MasterCard / Visa / ZainCash / FIB / FastPay / Qi Card</Badge>
+                      </InlineStack>
+                      <Text variant="bodySm" tone="subdued">
+                        تحويل آمن لبوابة الدفع وتأكيد الطلب وتحديث حالته إلى مدفوع آلياً فور إتمام العميل للدفع.
+                      </Text>
+                    </BlockStack>
+                    <Checkbox label="مفعل" checked={enableWayl} onChange={setEnableWayl} />
+                  </InlineStack>
+                </Box>
+
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <BlockStack gap="200">
+                    <InlineStack align="space-between" blockAlign="center">
+                      <BlockStack gap="100">
+                        <InlineStack gap="200" blockAlign="center">
+                          <Text variant="bodyMd" fontWeight="bold">💬 الطلب المباشر عبر واتساب (WhatsApp Order)</Text>
+                          <Badge tone="attention">محادثة فورية</Badge>
+                        </InlineStack>
+                        <Text variant="bodySm" tone="subdued">
+                          يسجل الطلب في شوبيفاي ويفتح نافذة محادثة واتساب موجهة لرقم خدمة العملاء مع ملخص الطلب كاملاً.
+                        </Text>
+                      </BlockStack>
+                      <Checkbox label="مفعل" checked={enableWhatsapp} onChange={setEnableWhatsapp} />
+                    </InlineStack>
+                    {enableWhatsapp && (
+                      <Box maxWidth="350px">
+                        <TextField
+                          label="رقم واتساب المتجر (مع مفتاح الدولة بدون +)"
+                          placeholder="مثال: 9647700000000"
+                          value={whatsappPhone}
+                          onChange={setWhatsappPhone}
+                          autoComplete="off"
+                        />
+                      </Box>
+                    )}
+                  </BlockStack>
+                </Box>
+
+                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <BlockStack gap="100">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text variant="bodyMd" fontWeight="bold">🇸🇦 ادفع باي (Edfapay السعودية) & Network International</Text>
+                        <Badge tone="subdued">قريباً / جاهز للتفعيل</Badge>
+                      </InlineStack>
+                      <Text variant="bodySm" tone="subdued">
+                        مدى، أبل باي، بطاقات فيزا وماستركارد في السعودية والإمارات.
+                      </Text>
+                    </BlockStack>
+                    <Badge tone="subdued">Scaffold Ready</Badge>
+                  </InlineStack>
+                </Box>
+              </BlockStack>
+            </BlockStack>
+          </Card>
+
+          {/* 5. Styling & Texts */}
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h2">5. نصوص وألوان النموذج (Texts & Colors)</Text>
               <InlineStack gap="400">
                 <Box minWidth="300px">
                   <TextField
