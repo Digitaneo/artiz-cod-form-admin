@@ -10,7 +10,7 @@
 (function () {
   "use strict";
 
-  const WORKER_URL = "https://artiz-cod-form.digitaneo.workers.dev";
+  const WORKER_URL = "https://aladdin-quick-order.digitaneo.workers.dev";
   let activeConfig = null;
   let activeShippingConfig = null;
   let orderItems = []; // [{ variantId, title, variantTitle, price, originalPrice, discountAmount, discountTitle, image, quantity }]
@@ -18,16 +18,65 @@
   let appliedDiscount = null;
   let loggedCustomer = null;
   let storeCurrency = "MAD";
+  let storeMoneyFormat = "";
+  let storeMoneyWithCurrencyFormat = "";
   let selectedShippingMethod = null;
   let currentCalculatedShipping = { cost: 0, title: "توصيل سريع لجميع المدن", isFree: false };
   let activePaymentConfig = null;
   let selectedPaymentMethod = "cod";
 
+  function formatMoney(amount) {
+    const num = Number(amount || 0);
+
+    // 1. If explicit Shopify money format template is provided by store
+    if (storeMoneyFormat) {
+      if (storeMoneyFormat.includes("{{amount_no_decimals}}")) {
+        const formatted = Math.round(num).toLocaleString("en-US", { maximumFractionDigits: 0 });
+        return storeMoneyFormat.replace(/\{\{\s*amount_no_decimals\s*\}\}/g, formatted);
+      }
+      if (storeMoneyFormat.includes("{{amount_no_decimals_with_comma_separator}}")) {
+        const formatted = Math.round(num).toLocaleString("de-DE", { maximumFractionDigits: 0 });
+        return storeMoneyFormat.replace(/\{\{\s*amount_no_decimals_with_comma_separator\s*\}\}/g, formatted);
+      }
+      if (storeMoneyFormat.includes("{{amount_no_decimals_with_space_separator}}")) {
+        const formatted = Math.round(num).toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+        return storeMoneyFormat.replace(/\{\{\s*amount_no_decimals_with_space_separator\s*\}\}/g, formatted);
+      }
+      if (storeMoneyFormat.includes("{{amount_with_comma_separator}}")) {
+        const formatted = num.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return storeMoneyFormat.replace(/\{\{\s*amount_with_comma_separator\s*\}\}/g, formatted);
+      }
+      if (storeMoneyFormat.includes("{{amount_with_apostrophe_separator}}")) {
+        const formatted = num.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return storeMoneyFormat.replace(/\{\{\s*amount_with_apostrophe_separator\s*\}\}/g, formatted);
+      }
+      if (storeMoneyFormat.includes("{{amount}}")) {
+        const formatted = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return storeMoneyFormat.replace(/\{\{\s*amount\s*\}\}/g, formatted);
+      }
+    }
+
+    // 2. Currencies that naturally never use decimals or integer amounts in non-decimal stores
+    const zeroDecimalCurrencies = ["IQD", "JPY", "KRW", "CLP", "VND", "PYG", "RWF", "UGX", "BIF", "DJF", "GNF", "KMF", "VUV", "XAF", "XOF", "XPF"];
+    const currUpper = String(storeCurrency || "").toUpperCase();
+    const isZeroDecimal = zeroDecimalCurrencies.includes(currUpper);
+
+    if (isZeroDecimal || Number.isInteger(num)) {
+      const formattedNum = Math.round(num).toLocaleString("en-US", { maximumFractionDigits: 0 });
+      const symbolOrCode = currUpper === "IQD" ? "د.ع" : storeCurrency;
+      return `${formattedNum} ${symbolOrCode}`;
+    }
+
+    // 3. General standard currency fallback
+    const formattedDec = num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${formattedDec} ${storeCurrency}`;
+  }
+
   // Regional Locations & Datasets (Loaded modularly per country via window.ARTIZ_LOCATIONS)
   window.ARTIZ_LOCATIONS = window.ARTIZ_LOCATIONS || {};
 
   const REGIONAL_DATASETS = new Proxy({}, {
-    get: function(target, prop) {
+    get: function (target, prop) {
       if (window.ARTIZ_LOCATIONS && window.ARTIZ_LOCATIONS[prop]) {
         return window.ARTIZ_LOCATIONS[prop];
       }
@@ -54,7 +103,7 @@
             document.head.appendChild(s);
           });
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     return window.ARTIZ_LOCATIONS ? window.ARTIZ_LOCATIONS[countryCode] : null;
   }
@@ -98,7 +147,7 @@
       if (custEl) {
         loggedCustomer = JSON.parse(custEl.textContent);
       }
-    } catch (_) {}
+    } catch (_) { }
     return loggedCustomer;
   }
 
@@ -230,7 +279,7 @@
     try {
       const saved = localStorage.getItem("artiz_customer_phone");
       if (saved && String(saved).trim() !== "") return String(saved).trim();
-    } catch (_) {}
+    } catch (_) { }
     return "";
   }
 
@@ -259,6 +308,8 @@
     const rootEl = document.getElementById("artiz-cod-global-root") || document.getElementById("artiz-cod-form-wrapper");
     currentShop = rootEl?.dataset.shop || window.Shopify?.shop || window.location.hostname;
     storeCurrency = rootEl?.dataset.currency || window.Shopify?.currency?.active || "IQD";
+    storeMoneyFormat = rootEl?.dataset.moneyFormat || window.Shopify?.money_format || window.theme?.moneyFormat || "";
+    storeMoneyWithCurrencyFormat = rootEl?.dataset.moneyWithCurrencyFormat || window.Shopify?.money_with_currency_format || "";
 
     // Load store configuration and shipping settings from Worker
     try {
@@ -616,14 +667,14 @@
           .filter(item => String(item.variant_id) !== String(variantId))
           .map(item => mapCartItemToOrderItem(item));
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Build Current Product with full cart discount awareness and accurate stock status
     let currentProduct;
     if (matchingCartItem) {
       const mapped = mapCartItemToOrderItem(matchingCartItem);
-      const effectiveOriginal = catalogComparePrice > mapped.price 
-        ? catalogComparePrice 
+      const effectiveOriginal = catalogComparePrice > mapped.price
+        ? catalogComparePrice
         : (mapped.originalPrice > mapped.price ? mapped.originalPrice : catalogPrice);
 
       const hasAutoDiscount = mapped.unitDiscount > 0 || (catalogPrice > mapped.price);
@@ -844,8 +895,8 @@
       ? ((item.original_line_price - item.final_line_price) / 100)
       : discounts.reduce((sum, d) => sum + (d.amount / 100), 0);
     const discountTitle = discounts[0]?.discount_application?.title || discounts[0]?.title || "تخفيض السلة";
-    const cartDiscountPercent = origPrice > finalPrice 
-      ? Math.round(((origPrice - finalPrice) / origPrice) * 100) 
+    const cartDiscountPercent = origPrice > finalPrice
+      ? Math.round(((origPrice - finalPrice) / origPrice) * 100)
       : 0;
 
     return {
@@ -878,7 +929,7 @@
           item.cartDiscountPercent = mapped.cartDiscountPercent;
           if (item.isCurrentProduct && item.catalogPrice) {
             item.hasAutoDiscount = item.catalogPrice > mapped.price;
-            item.autoDiscountPercent = item.hasAutoDiscount 
+            item.autoDiscountPercent = item.hasAutoDiscount
               ? Math.round(((item.catalogPrice - mapped.price) / item.catalogPrice) * 100)
               : 0;
           }
@@ -955,7 +1006,7 @@
           b.textContent = cart.item_count || 0;
         });
         syncOrderItemsFromCart(cart);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -981,7 +1032,7 @@
           b.textContent = cart.item_count || 0;
         });
         syncOrderItemsFromCart(cart);
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -1029,9 +1080,9 @@
         <!-- Customer Form Section -->
         <form id="artiz-checkout-form" class="artiz-form-body">
           ${(() => {
-            const cust = getLoggedCustomer();
-            if (!cust) return "";
-            return `
+        const cust = getLoggedCustomer();
+        if (!cust) return "";
+        return `
               <div class="artiz-logged-in-banner">
                 <div class="artiz-logged-in-avatar">👤</div>
                 <div class="artiz-logged-in-content">
@@ -1043,7 +1094,7 @@
                 </div>
               </div>
             `;
-          })()}
+      })()}
 
           ${activeConfig.requiredFields?.name !== false ? `
             <div class="artiz-field-group">
@@ -1145,17 +1196,17 @@
         <label class="artiz-payment-methods-title">طريقة الدفع والتأكيد *</label>
         <div class="artiz-payment-cards-grid">
           ${enabledKeys.map(key => {
-            const m = methods[key] || {};
-            const isSelected = selectedPaymentMethod === key;
-            const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
-            const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
-              ? "دفع إلكتروني - WAYL"
-              : (m.title || key);
-            const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
-              ? "دفع آمن — SSL & 3D Secure"
-              : (m.subtitle || "");
+      const m = methods[key] || {};
+      const isSelected = selectedPaymentMethod === key;
+      const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
+      const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
+        ? "دفع إلكتروني - WAYL"
+        : (m.title || key);
+      const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
+        ? "دفع آمن — SSL & 3D Secure"
+        : (m.subtitle || "");
 
-            return `
+      return `
               <div class="artiz-payment-card ${isSelected ? 'active' : ''}" data-method="${key}" onclick="window.artizSelectPaymentMethod('${key}')">
                 <div class="artiz-pay-radio-col">
                   <input type="radio" name="artiz_payment_choice" value="${key}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); window.artizSelectPaymentMethod('${key}');">
@@ -1180,13 +1231,13 @@
                 </div>
               </div>
             `;
-          }).join("")}
+    }).join("")}
         </div>
       </div>
     `;
   }
 
-  window.artizSelectPaymentMethod = function(methodKey) {
+  window.artizSelectPaymentMethod = function (methodKey) {
     selectedPaymentMethod = methodKey;
     const cards = document.querySelectorAll(".artiz-payment-card");
     cards.forEach(card => {
@@ -1392,9 +1443,9 @@
             </div>
             ${currentProduct.variantTitle ? `<p class="artiz-item-variant">${currentProduct.variantTitle}</p>` : ""}
             <div class="artiz-price-stack">
-              <span class="artiz-item-price">${(currentProduct.price * currentProduct.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+              <span class="artiz-item-price">${formatMoney(currentProduct.price * currentProduct.quantity)}</span>
               ${hasDiscount ? `
-                <span class="artiz-item-compare-price">${(currentProduct.originalPrice * currentProduct.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                <span class="artiz-item-compare-price">${formatMoney(currentProduct.originalPrice * currentProduct.quantity)}</span>
                 <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
               ` : ""}
             </div>
@@ -1414,19 +1465,19 @@
               <strong class="artiz-cart-toggle-label">منتجات أخرى في سلتك (${otherItems.length})</strong>
             </div>
             <div class="artiz-cart-toggle-left">
-              <span class="artiz-other-cart-sum">${otherTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}</span>
+              <span class="artiz-other-cart-sum">${formatMoney(otherTotal)}</span>
               <span class="artiz-other-cart-chevron">${showOtherCartItems ? '▲ إخفاء' : '▼ إظهار وتعديل'}</span>
             </div>
           </button>
           
           <div class="artiz-other-cart-list" style="${showOtherCartItems ? 'display:flex;' : 'display:none;'}">
             ${otherItems.map(item => {
-              const idx = orderItems.indexOf(item);
-              const itemDiscount = item.originalPrice && item.originalPrice > item.price;
-              const itemDiscPercent = itemDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
-              const itemAutoPercent = item.cartDiscountPercent || itemDiscPercent;
+        const idx = orderItems.indexOf(item);
+        const itemDiscount = item.originalPrice && item.originalPrice > item.price;
+        const itemDiscPercent = itemDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+        const itemAutoPercent = item.cartDiscountPercent || itemDiscPercent;
 
-              return `
+        return `
                 <div class="artiz-item-card artiz-sub-item-card">
                   ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
                   <div class="artiz-item-info">
@@ -1437,9 +1488,9 @@
                     </div>
                     ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
                     <div class="artiz-price-stack">
-                      <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                      <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
                       ${itemDiscount ? `
-                        <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                        <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
                       ` : ""}
                     </div>
                   </div>
@@ -1451,7 +1502,7 @@
                   <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف من السلة">✕</button>
                 </div>
               `;
-            }).join("")}
+      }).join("")}
           </div>
         </div>
       `;
@@ -1472,9 +1523,9 @@
               </div>
               ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
               <div class="artiz-price-stack">
-                <span class="artiz-item-price">${(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
                 ${hasDiscount ? `
-                  <span class="artiz-item-compare-price">${(item.originalPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+                  <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
                   <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
                 ` : ""}
               </div>
@@ -1517,7 +1568,8 @@
     };
 
     const threshold = Number(shippingGen.freeShippingThreshold || 0);
-    const isFreeShipping = shippingGen.freeShippingEnabled && threshold > 0 && subtotal >= threshold;
+    const freeShippingActive = Boolean(shippingGen.freeShippingEnabled || shippingGen.enableFreeShipping);
+    const isFreeShipping = freeShippingActive && threshold > 0 && subtotal >= threshold;
 
     let shippingCost = 0;
     let shippingTitle = shippingGen.defaultTitle || "توصيل سريع لجميع المدن";
@@ -1540,13 +1592,13 @@
       }
     } else {
       // Free Shipping Progress Bar
-      if (freeShippingContainer && threshold > 0) {
+      if (freeShippingContainer && freeShippingActive && threshold > 0) {
         const remaining = Math.max(0, threshold - subtotal);
         const percent = Math.min(100, Math.round((subtotal / threshold) * 100));
         freeShippingContainer.innerHTML = `
           <div class="artiz-free-shipping-bar">
             <div class="artiz-shipping-msg">
-              أضف بقيمة <strong>${remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</strong> إضافية للحصول على <strong>شحن مجاني!</strong>
+              أضف للسلة <strong>${formatMoney(remaining)}</strong> إضافية للحصول على <strong>شحن مجاني!</strong>
             </div>
             <div class="artiz-progress-track">
               <div class="artiz-progress-fill" style="width: ${percent}%;"></div>
@@ -1637,7 +1689,7 @@
                   <input type="radio" name="artiz_shipping_method" value="${m.id}" ${selectedShippingMethod === m.id ? 'checked' : ''} onchange="window.artizSelectShippingMethod('${m.id}')">
                   <span>${m.title}</span>
                 </div>
-                <strong>${m.price.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}</strong>
+                <strong>${formatMoney(m.price)}</strong>
               </label>
             `).join("")}
           </div>
@@ -1651,13 +1703,13 @@
     summaryLines.innerHTML = `
       <div class="artiz-summary-row">
         <span>المجموع الفرعي:</span>
-        <span class="artiz-subtotal-val">${(originalSubtotal > subtotal ? originalSubtotal : subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+        <span class="artiz-subtotal-val">${formatMoney(originalSubtotal > subtotal ? originalSubtotal : subtotal)}</span>
       </div>
 
       ${totalSavings > 0 ? `
         <div class="artiz-summary-row artiz-savings-row">
           <span>إجمالي التوفير والخصم:</span>
-          <span class="artiz-savings-badge">وفرت -${totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+          <span class="artiz-savings-badge">وفرت -${formatMoney(totalSavings)}</span>
         </div>
       ` : ""}
 
@@ -1667,7 +1719,7 @@
           <small class="artiz-shipping-title">${shippingTitle}</small>
         </div>
         <span class="artiz-shipping-cost ${shippingCost === 0 ? 'artiz-text-free' : ''}">
-          ${shippingCost === 0 ? 'مجاناً' : `${shippingCost.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${storeCurrency}`}
+          ${shippingCost === 0 ? (activeShippingConfig?.general?.freeShippingText || 'مجاناً') : formatMoney(shippingCost)}
         </span>
       </div>
 
@@ -1675,7 +1727,7 @@
 
       <div class="artiz-summary-row artiz-total-row">
         <span>المجموع الكلي للدفع:</span>
-        <span class="artiz-total-val">${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${storeCurrency}</span>
+        <span class="artiz-total-val">${formatMoney(grandTotal)}</span>
       </div>
     `;
 
@@ -1791,7 +1843,7 @@
     // Cache customer phone for future visits
     try {
       localStorage.setItem("artiz_customer_phone", phone);
-    } catch (_) {}
+    } catch (_) { }
 
     // Accurate Region & City resolution (Never lose customer's registered city!)
     let region = "";
@@ -1907,26 +1959,15 @@
         if (label) label.textContent = "جاري نقلك لبوابة الدفع الآمنة...";
         try {
           await fetch("/cart/clear.js", { method: "POST" });
-        } catch (_) {}
+        } catch (_) { }
         window.location.href = data.data.redirectUrl;
         return;
       }
 
-      // 2. WhatsApp Direct Order
-      if (selectedPaymentMethod === "whatsapp" && data.data?.whatsappUrl) {
-        try {
-          await fetch("/cart/clear.js", { method: "POST" });
-        } catch (_) {}
-        window.open(data.data.whatsappUrl, "_blank");
-        const thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
-        window.location.href = thankYouUrl;
-        return;
-      }
-
-      // 3. Standard COD Order
+      // 2. Standard COD Order
       try {
         await fetch("/cart/clear.js", { method: "POST" });
-      } catch (_) {}
+      } catch (_) { }
 
       // Redirect to Shopify Order Confirmation Thank You Page
       const thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;

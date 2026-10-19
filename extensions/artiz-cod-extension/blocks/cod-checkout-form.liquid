@@ -82,11 +82,16 @@
   </script>
 {% endif %}
 
+{% assign detected_country = localization.country.iso_code | default: shop.country_code | default: 'MA' | upcase %}
+
 <div 
   class="artiz-cod-block-wrapper" 
   id="artiz-cod-form-wrapper" 
   data-shop="{{ shop.permanent_domain }}"
   data-currency="{{ shop.currency }}"
+  data-country="{{ detected_country }}"
+  data-money-format="{{ shop.money_format | escape }}"
+  data-money-with-currency-format="{{ shop.money_with_currency_format | escape }}"
 >
   <button 
     type="button" 
@@ -97,8 +102,6 @@
     <span>{{ block.settings.button_title | default: "اطلب الآن - الدفع عند الاستلام" }}</span>
   </button>
 </div>
-
-{% assign detected_country = localization.country.iso_code | default: shop.country_code | default: 'MA' | upcase %}
 
 {% case detected_country %}
   {% when 'DZ' %}

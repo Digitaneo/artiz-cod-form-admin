@@ -83,15 +83,18 @@
     </script>
   {% endif %}
 
+  {% assign detected_country = localization.country.iso_code | default:MA' | upcase %}
+
   <div 
     id="artiz-cod-global-root" 
     data-shop="{{ shop.permanent_domain }}"
     data-currency="{{ shop.currency }}"
+    data-country="{{ detected_country }}"
+    data-money-format="{{ shop.money_format | escape }}"
+    data-money-with-currency-format="{{ shop.money_with_currency_format | escape }}"
     data-primary-color="{{ block.settings.primary_color | default: '#008060' }}"
     data-button-text="{{ block.settings.button_text | default: 'اشتري الآن - الدفع عند الاستلام' }}"
   ></div>
-
-  {% assign detected_country = localization.country.iso_code | default: shop.country_code | default: 'MA' | upcase %}
 
   {% case detected_country %}
     {% when 'DZ' %}
