@@ -1059,7 +1059,7 @@
             </div>
           ` : ""}
 
-          ${activeConfig.addressMode === "cascading" ? `
+          ${(activeConfig.addressMode === "cascading" || activeConfig.addressMode !== "standard" || activeCountry === "IQ" || storeCurrency === "IQD") ? `
             <!-- Cascading Location Selector (Region -> City) with Dynamic Country Detection -->
             <div class="artiz-location-grid">
               <div class="artiz-field-group">
@@ -1215,20 +1215,18 @@
     }
 
     // Cascading City and Region change events
-    if (activeConfig.addressMode === "cascading") {
-      const regionSelect = document.getElementById("artiz-input-region");
-      const citySelect = document.getElementById("artiz-input-city");
-      if (regionSelect && citySelect) {
-        matchCustomerCascadingLocation();
+    const regionSelect = document.getElementById("artiz-input-region");
+    const citySelect = document.getElementById("artiz-input-city");
+    if (regionSelect && citySelect) {
+      matchCustomerCascadingLocation();
 
-        regionSelect.addEventListener("change", function () {
-          populateCityDropdown(regionSelect.value);
-          renderOrderItemsList();
-        });
-        citySelect.addEventListener("change", function () {
-          renderOrderItemsList();
-        });
-      }
+      regionSelect.addEventListener("change", function () {
+        populateCityDropdown(regionSelect.value);
+        renderOrderItemsList();
+      });
+      citySelect.addEventListener("change", function () {
+        renderOrderItemsList();
+      });
     }
 
     // Coupon event
@@ -1506,15 +1504,15 @@
     // Shipping Calculation
     const shippingGen = activeShippingConfig?.general || {
       enabled: true,
-      defaultTitle: "توصيل سريع لجميع المدن",
-      defaultRate: 30,
+      defaultTitle: "توصيل سريع لكافة المحافظات",
+      defaultRate: 5000,
+      defaultPrice: 5000,
       freeShippingEnabled: true,
-      freeShippingThreshold: 90800,
-      freeShippingText: "مجاناً (توصيل سريع)",
-      allowMultipleMethods: true,
+      freeShippingThreshold: 50000,
+      freeShippingText: "مجاناً (توصيل مجاني)",
+      allowMultipleMethods: false,
       defaultMethods: [
-        { id: "home", title: "توصيل للمنزل (سريع)", price: 30 },
-        { id: "desk", title: "استلام من مكتب التوزيع (Stop Desk)", price: 20 }
+        { id: "standard", title: "توصيل سريع لكافة المحافظات", price: 5000 }
       ]
     };
 
@@ -1564,10 +1562,15 @@
       if (activeShippingConfig?.rates && Array.isArray(activeShippingConfig.rates)) {
         let cityVal = "";
         let regionVal = "";
-        if (activeConfig.addressMode === "cascading") {
-          cityVal = (document.getElementById("artiz-input-city")?.value || "").trim().toLowerCase();
-          regionVal = (document.getElementById("artiz-input-region")?.value || "").trim().toLowerCase();
-        } else {
+        const regionEl = document.getElementById("artiz-input-region");
+        const cityEl = document.getElementById("artiz-input-city");
+        if (regionEl) {
+          regionVal = (regionEl.value || "").trim().toLowerCase();
+        }
+        if (cityEl) {
+          cityVal = (cityEl.value || "").trim().toLowerCase();
+        }
+        if (!regionVal && !cityVal) {
           // Manual mode: detect city from address input or logged-in customer
           const rawAddr = (document.getElementById("artiz-input-address")?.value || "").trim().toLowerCase();
           const cust = getLoggedCustomer();
@@ -1580,8 +1583,11 @@
         }
 
         const matchedRate = activeShippingConfig.rates.find(r => {
-          if (cityVal && (r.city || "").trim().toLowerCase() === cityVal) return true;
-          if (regionVal && (r.region || "").trim().toLowerCase() === regionVal && !r.city) return true;
+          const rc = (r.city || "").trim().toLowerCase();
+          const rr = (r.region || "").trim().toLowerCase();
+          if (rc && (rc === cityVal || cityVal.includes(rc) || rc.includes(cityVal))) return true;
+          if (rc && (rc === regionVal || regionVal.includes(rc) || rc.includes(regionVal))) return true;
+          if (rr && (rr === regionVal || regionVal.includes(rr) || rr.includes(regionVal))) return true;
           return false;
         });
 
@@ -1591,15 +1597,24 @@
               const [t, pr] = p.split(":");
               return { id: `custom_${idx}`, title: t.trim(), price: Number(pr.trim() || 0) };
             });
-          } else if (matchedRate.cost !== undefined && matchedRate.cost !== null) {
-            methods = [{ id: "standard", title: matchedRate.deliveryMethod || matchedRate.title || shippingGen.defaultTitle || "توصيل قياسي", price: Number(matchedRate.cost) }];
+          } else {
+            const finalCost = matchedRate.cost !== undefined && matchedRate.cost !== null && matchedRate.cost !== ""
+              ? Number(matchedRate.cost)
+              : (matchedRate.price !== undefined ? Number(matchedRate.price) : Number(shippingGen.defaultPrice || shippingGen.defaultRate || 5000));
+            methods = [{
+              id: "standard",
+              title: matchedRate.deliveryMethod || matchedRate.title || shippingGen.defaultTitle || "توصيل سريع",
+              price: finalCost
+            }];
           }
         }
       }
 
       if (!methods || methods.length === 0) {
-        methods = shippingGen.defaultMethods || [
-          { id: "home", title: shippingGen.defaultTitle || "توصيل سريع للمنزل", price: Number(shippingGen.defaultRate || 30) }
+        let fallbackRate = Number(shippingGen.defaultPrice ?? shippingGen.defaultRate ?? 5000);
+        if (fallbackRate === 30) fallbackRate = 5000;
+        methods = [
+          { id: "standard", title: shippingGen.defaultTitle || "توصيل سريع لكافة المحافظات", price: fallbackRate }
         ];
       }
 
@@ -1763,7 +1778,7 @@
 
     const name = document.getElementById("artiz-input-name")?.value.trim() || "عميل المتجر";
     const phone = document.getElementById("artiz-input-phone")?.value.trim() || "";
-    const isCascading = activeConfig.addressMode === "cascading";
+    const isCascading = Boolean(document.getElementById("artiz-input-region")) || activeConfig.addressMode === "cascading";
     const cust = getLoggedCustomer();
     const address = document.getElementById("artiz-input-address")?.value.trim() || "العنوان بالمتجر";
     const note = document.getElementById("artiz-input-note")?.value.trim() || "";
