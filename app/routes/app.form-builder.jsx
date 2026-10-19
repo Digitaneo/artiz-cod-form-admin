@@ -146,7 +146,7 @@ export default function FormBuilderPage() {
         defaultMethod: enableCod ? "cod" : (enableWayl ? "wayl" : "whatsapp"),
         methods: {
           cod: { enabled: enableCod, title: "الدفع عند الاستلام", subtitle: "💵 ادفع بكل أمان وقت استلام المنتج.", badge: "نقدي", icon: "cash" },
-          wayl: { enabled: enableWayl, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — 3D Secure", badge: "دفع آمن 100%", icon: "electronic", customDomain: "" },
+          wayl: { enabled: enableWayl, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — SSL & 3D Secure", badge: "دفع آمن 100%", icon: "electronic", customDomain: "" },
           whatsapp: { enabled: false, title: "طلب مباشر عبر واتساب", subtitle: "تأكيد الطلب والتفاصيل مباشرة مع المتجر", badge: "تواصل سريع", icon: "whatsapp", phone: whatsappPhone }
         }
       },

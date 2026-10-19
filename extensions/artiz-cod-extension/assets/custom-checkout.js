@@ -1115,16 +1115,13 @@
   }
 
   function getSubmitButtonLabel() {
-    if (selectedPaymentMethod === "wayl") return "الانتقال إلى الدفع الإلكتروني 🔒";
-    if (selectedPaymentMethod === "whatsapp") return "تأكيد وإرسال الطلب عبر واتساب 💬";
-    if (selectedPaymentMethod === "edfapay" || selectedPaymentMethod === "network_intl") return "المتابعة لإتمام الدفع 💳";
-    return activeConfig.buttonText || "تأكيد الطلب الآن (الدفع عند الاستلام)";
+    return activeConfig.buttonText || "أطلب الآن";
   }
 
   function renderPaymentMethodsSelector() {
     const methods = activePaymentConfig?.methods || {
       cod: { id: "cod", enabled: true, title: "الدفع عند الاستلام", subtitle: "💵 ادفع بكل أمان وقت استلام المنتج.", badge: "نقدي", icon: "cash" },
-      wayl: { id: "wayl", enabled: false, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — 3D Secure", badge: "دفع آمن 100%", icon: "electronic" }
+      wayl: { id: "wayl", enabled: false, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — SSL & 3D Secure", badge: "دفع آمن 100%", icon: "electronic" }
     };
 
     const enabledKeys = (activePaymentConfig?.enabledMethods || ["cod"]).filter(k => methods[k]?.enabled === true);
