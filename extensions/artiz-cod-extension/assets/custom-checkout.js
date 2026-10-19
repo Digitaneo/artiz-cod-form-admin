@@ -1115,7 +1115,7 @@
   }
 
   function getSubmitButtonLabel() {
-    return activeConfig.buttonText || "أطلب الآن";
+    return activeConfig.submitButtonText || activeConfig.buttonText || "أطلب الآن";
   }
 
   function renderPaymentMethodsSelector() {
@@ -1148,6 +1148,12 @@
             const m = methods[key] || {};
             const isSelected = selectedPaymentMethod === key;
             const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
+            const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
+              ? "دفع إلكتروني - WAYL"
+              : (m.title || key);
+            const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
+              ? "دفع آمن — SSL & 3D Secure"
+              : (m.subtitle || "");
 
             return `
               <div class="artiz-payment-card ${isSelected ? 'active' : ''}" data-method="${key}" onclick="window.artizSelectPaymentMethod('${key}')">
@@ -1157,10 +1163,10 @@
                 <div class="artiz-pay-info-col">
                   <div class="artiz-pay-header-row">
                     <span class="artiz-pay-icon">${iconBadge}</span>
-                    <strong class="artiz-pay-name">${m.title || key}</strong>
+                    <strong class="artiz-pay-name">${displayTitle}</strong>
                     ${m.badge ? `<span class="artiz-pay-badge">${m.badge}</span>` : ''}
                   </div>
-                  ${m.subtitle ? `<p class="artiz-pay-subtitle">${m.subtitle}</p>` : ''}
+                  ${displaySubtitle ? `<p class="artiz-pay-subtitle">${displaySubtitle}</p>` : ''}
                   ${key === 'wayl' ? `
                     <div class="artiz-pay-gateways-logos">
                       <span class="artiz-brand-tag">MasterCard</span>
