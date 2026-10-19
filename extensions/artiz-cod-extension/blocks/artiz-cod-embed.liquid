@@ -83,7 +83,7 @@
     </script>
   {% endif %}
 
-  {% assign detected_country = localization.country.iso_code | default:MA' | upcase %}
+  {% assign detected_country = localization.country.iso_code | default: shop.country_code | default: 'IQ' | upcase %}
 
   <div 
     id="artiz-cod-global-root" 
