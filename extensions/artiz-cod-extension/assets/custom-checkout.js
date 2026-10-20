@@ -1904,7 +1904,7 @@
 
     const name = document.getElementById("artiz-input-name")?.value.trim() || "عميل المتجر";
     const phone = document.getElementById("artiz-input-phone")?.value.trim() || "";
-    const isCascading = Boolean(document.getElementById("artiz-input-region")) || activeConfig.addressMode === "cascading";
+    const isCascading = Boolean(document.getElementById("artiz-input-region")) && activeConfig?.addressMode === "cascading";
     const cust = getLoggedCustomer();
     const address = document.getElementById("artiz-input-address")?.value.trim() || "العنوان بالمتجر";
     const note = document.getElementById("artiz-input-note")?.value.trim() || "";
@@ -2013,7 +2013,8 @@
         discountPercent: appliedDiscount?.type === "percentage" ? appliedDiscount.amount : undefined,
         affiliate: affiliateData,
         paymentMethod: selectedPaymentMethod,
-        currency: storeCurrency
+        currency: storeCurrency,
+        orderTag: activeConfig?.orderTag || undefined
       };
 
       const res = await fetch(`${WORKER_URL}/public/checkout`, {
@@ -2044,7 +2045,7 @@
       } catch (_) { }
 
       // Redirect to Shopify Order Confirmation Thank You Page
-      const thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
+      const thankYouUrl = activeConfig?.thankYouUrl || data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
       window.location.href = thankYouUrl;
     } catch (err) {
       alert(`خطأ: ${err.message}`);
