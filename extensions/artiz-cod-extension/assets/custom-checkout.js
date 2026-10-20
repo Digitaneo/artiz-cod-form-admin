@@ -350,14 +350,34 @@
       setupProductPageTrigger();
     }
 
-    // Update block trigger button text if present
-    const blockBtn = document.getElementById("artiz-block-trigger-btn");
-    if (blockBtn && activeConfig.buttonText) {
-      const span = blockBtn.querySelector("span");
-      if (span) span.textContent = activeConfig.buttonText;
+    setupCartPageTrigger();
+
+    // Auto-discover dynamically opened theme cart drawers & re-bind triggers
+    if (window.MutationObserver && activeConfig.cartDrawerTrigger) {
+      let drawerTimeout = null;
+      const drawerObserver = new MutationObserver(() => {
+        if (drawerTimeout) clearTimeout(drawerTimeout);
+        drawerTimeout = setTimeout(() => {
+          setupCartPageTrigger();
+        }, 120);
+      });
+      drawerObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    setupCartPageTrigger();
+    // Standard theme event listeners for cart changes
+    const onCartChanged = async () => {
+      try {
+        const cRes = await fetch("/cart.js?_t=" + Date.now());
+        const cart = await cRes.json();
+        if (cart.currency) storeCurrency = cart.currency;
+        if (cart.items && cart.items.length > 0) {
+          orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+          renderOrderItemsList();
+        }
+      } catch (_) {}
+    };
+    document.addEventListener("cart:updated", onCartChanged);
+    document.addEventListener("cart:refresh", onCartChanged);
   }
 
   function getFallbackConfig() {
@@ -857,16 +877,34 @@
     openArtizModal();
   }
 
-  // 3. Setup Cart Page Trigger
+  async function handleCartCheckout() {
+    try {
+      const res = await fetch("/cart.js?_t=" + Date.now());
+      const cart = await res.json();
+      if (cart.currency) storeCurrency = cart.currency;
+
+      if (!cart.items || cart.items.length === 0) {
+        alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
+        return;
+      }
+
+      orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      openArtizModal();
+    } catch (e) {
+      alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
+    }
+  }
+
+  // 3. Setup Cart Page & Drawer Triggers
   function setupCartPageTrigger() {
     if (!activeConfig.cartDrawerTrigger) return;
-    if (window.location.pathname.includes("/products/")) return;
 
-    const cartForms = document.querySelectorAll('form[action="/cart"], form[action*="/cart?"]');
+    // Discover cart forms on page or inside drawers/popups
+    const cartForms = document.querySelectorAll('form[action="/cart"], form[action*="/cart?"], [data-cart-drawer] form, cart-drawer form');
     cartForms.forEach(cartForm => {
       if (cartForm.querySelector(".artiz-cart-cod-btn")) return;
 
-      const checkoutBtn = cartForm.querySelector('[name="checkout"], input[type="submit"][value*="checkout" i], button[type="submit"]');
+      const checkoutBtn = cartForm.querySelector('[name="checkout"], input[type="submit"][value*="checkout" i], button[type="submit"], .cart__checkout-button, .drawer__checkout');
       if (!checkoutBtn) return;
 
       const codCartBtn = document.createElement("button");
@@ -876,6 +914,7 @@
 
       codCartBtn.addEventListener("click", async function (e) {
         e.preventDefault();
+        e.stopPropagation();
         await handleCartCheckout();
       });
 
@@ -1110,7 +1149,14 @@
             </div>
           ` : ""}
 
-          ${(activeConfig.addressMode === "cascading" || activeConfig.addressMode !== "standard" || activeCountry === "IQ" || storeCurrency === "IQD") ? `
+          ${activeConfig.requiredFields?.email ? `
+            <div class="artiz-field-group">
+              <label>البريد الإلكتروني (اختياري)</label>
+              <input type="email" id="artiz-input-email" placeholder="example@email.com" value="${getLoggedCustomer()?.email || ""}">
+            </div>
+          ` : ""}
+
+          ${(activeConfig.addressMode === "cascading") ? `
             <!-- Cascading Location Selector (Region -> City) with Dynamic Country Detection -->
             <div class="artiz-location-grid">
               <div class="artiz-field-group">
@@ -1393,6 +1439,17 @@
   }
 
   window.artizOpenModal = async function () {
+    try {
+      const cRes = await fetch("/cart.js?_t=" + Date.now());
+      const cart = await cRes.json();
+      if (cart.currency) storeCurrency = cart.currency;
+      if (cart.items && cart.items.length > 0) {
+        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+        openArtizModal();
+        return;
+      }
+    } catch (_) { }
+
     if (orderItems.length === 0) {
       const productForm = document.querySelector('form[action*="/cart/add"]');
       if (productForm) {
@@ -1634,14 +1691,31 @@
           }
         }
 
-        const matchedRate = activeShippingConfig.rates.find(r => {
-          const rc = (r.city || "").trim().toLowerCase();
-          const rr = (r.region || "").trim().toLowerCase();
-          if (rc && (rc === cityVal || cityVal.includes(rc) || rc.includes(cityVal))) return true;
-          if (rc && (rc === regionVal || regionVal.includes(rc) || rc.includes(regionVal))) return true;
-          if (rr && (rr === regionVal || regionVal.includes(rr) || rr.includes(regionVal))) return true;
-          return false;
-        });
+        let matchedRate = null;
+
+        // Specificity search: City First -> Governorate / Region Second -> Country Third
+        if (cityVal) {
+          matchedRate = activeShippingConfig.rates.find(r => {
+            const rc = (r.city || "").trim().toLowerCase();
+            return rc && (rc === cityVal || cityVal.includes(rc) || rc.includes(cityVal));
+          });
+        }
+
+        if (!matchedRate && regionVal) {
+          matchedRate = activeShippingConfig.rates.find(r => {
+            const rr = (r.region || "").trim().toLowerCase();
+            const rc = (r.city || "").trim().toLowerCase();
+            return (rr && (rr === regionVal || regionVal.includes(rr) || rr.includes(regionVal))) ||
+                   (rc && (rc === regionVal || regionVal.includes(rc) || rc.includes(regionVal)));
+          });
+        }
+
+        if (!matchedRate && activeCountryCode) {
+          matchedRate = activeShippingConfig.rates.find(r => {
+            const rcc = (r.countryCode || "").trim().toUpperCase();
+            return rcc && rcc === activeCountryCode.toUpperCase();
+          });
+        }
 
         if (matchedRate) {
           if (matchedRate.customRates && String(matchedRate.customRates).includes(":")) {
