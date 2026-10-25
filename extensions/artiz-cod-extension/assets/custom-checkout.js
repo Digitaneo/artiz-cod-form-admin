@@ -581,8 +581,23 @@
 
   async function updateProductPageItems(productForm) {
     if (!productForm) return;
-    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
-    let variantId = variantInput ? variantInput.value : null;
+    let variantId = null;
+    try {
+      const fd = new FormData(productForm);
+      variantId = fd.get("id");
+    } catch (_) {}
+    if (!variantId) {
+      const variantInput = productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])') || productForm.querySelector('input[name="id"], select[name="id"]');
+      variantId = variantInput ? variantInput.value : null;
+    }
+    if (!variantId && productForm.id) {
+      const extInput = document.querySelector(`input[name="id"][form="${productForm.id}"], select[name="id"][form="${productForm.id}"]`);
+      if (extInput) variantId = extInput.value;
+    }
+    if (!variantId) {
+      const anyId = document.querySelector('input[name="id"], select[name="id"]');
+      if (anyId) variantId = anyId.value;
+    }
     if (!variantId) {
       const urlParams = new URLSearchParams(window.location.search);
       variantId = urlParams.get("variant");
@@ -790,8 +805,23 @@
   }
 
   async function handleDirectProductBuy(productForm) {
-    const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
-    let variantId = variantInput ? variantInput.value : null;
+    let variantId = null;
+    try {
+      const fd = new FormData(productForm);
+      variantId = fd.get("id");
+    } catch (_) {}
+    if (!variantId) {
+      const variantInput = productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])') || productForm.querySelector('input[name="id"], select[name="id"]');
+      variantId = variantInput ? variantInput.value : null;
+    }
+    if (!variantId && productForm.id) {
+      const extInput = document.querySelector(`input[name="id"][form="${productForm.id}"], select[name="id"][form="${productForm.id}"]`);
+      if (extInput) variantId = extInput.value;
+    }
+    if (!variantId) {
+      const anyId = document.querySelector('input[name="id"], select[name="id"]');
+      if (anyId) variantId = anyId.value;
+    }
     if (!variantId) {
       const urlParams = new URLSearchParams(window.location.search);
       variantId = urlParams.get("variant");
@@ -1468,15 +1498,18 @@
     const freeShippingContainer = document.getElementById("artiz-free-shipping-container");
     if (!container || !summaryLines) return;
 
+    const activeCountryCode = detectActiveCountryCode();
+    const submitBtn = document.getElementById("artiz-submit-order-btn");
+
     if (orderItems.length === 0) {
       container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:14px; margin:20px 0;">السلة فارغة</p>`;
       summaryLines.innerHTML = "";
       if (freeShippingContainer) freeShippingContainer.innerHTML = "";
-      document.getElementById("artiz-submit-order-btn").disabled = true;
+      if (submitBtn) submitBtn.disabled = true;
       return;
     }
 
-    document.getElementById("artiz-submit-order-btn").disabled = false;
+    if (submitBtn) submitBtn.disabled = false;
 
     // Render items with compare-at price & discount badges
     const currentProduct = orderItems.find(i => i.isCurrentProduct);
@@ -1807,7 +1840,6 @@
 
     // Check if any order item is sold out and block the submit button
     const hasSoldOut = orderItems.some(i => i.available === false);
-    const submitBtn = document.getElementById("artiz-submit-order-btn");
     if (submitBtn) {
       if (hasSoldOut) {
         submitBtn.disabled = true;
@@ -2044,8 +2076,14 @@
         await fetch("/cart/clear.js", { method: "POST" });
       } catch (_) { }
 
-      // Redirect to Shopify Order Confirmation Thank You Page
-      const thankYouUrl = activeConfig?.thankYouUrl || data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
+      // Redirect to Official Shopify Confirmation or Custom Thank You Page
+      let thankYouUrl = data.data?.thankYouUrl;
+      if (activeConfig?.enableCustomThankYou) {
+        thankYouUrl = activeConfig?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
+      }
+      if (!thankYouUrl) {
+        thankYouUrl = data.data?.thankYouUrl || `/pages/thank-you?order_id=${data.data?.orderId}&shop=${currentShop}`;
+      }
       window.location.href = thankYouUrl;
     } catch (err) {
       alert(`خطأ: ${err.message}`);
