@@ -11,6 +11,26 @@
 }
 
 /* ============================================================
+   0. ZERO-FLICKER NATIVE BUTTON HIDING (Applied instantly on page load)
+   ============================================================ */
+body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons button[type="submit"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons [data-shopify="payment-button"],
+body:not(.artiz-hijack-mode) form[action*="/cart/add"] .shopify-payment-button,
+body:not(.artiz-hijack-mode) form[action*="/cart/add"] > button[type="submit"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons button[type="submit"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons [data-shopify="payment-button"],
+body:not(.artiz-hijack-mode) quick-buy-drawer .shopify-payment-button,
+body:not(.artiz-hijack-mode) quick-buy-drawer button[name="add"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) cart-drawer form[action*="/cart"] button[name="checkout"],
+body:not(.artiz-hijack-mode) .cart-drawer form[action*="/cart"] button[name="checkout"],
+body:not(.artiz-hijack-mode) form.cart-form button[name="checkout"],
+body:not(.artiz-hijack-mode) .cart__checkout-button,
+body:not(.artiz-hijack-mode) .drawer__checkout {
+  display: none !important;
+}
+
+/* ============================================================
    1. TRIGGER BUTTONS (Product Page & Cart)
    ============================================================ */
 .artiz-dual-actions {
@@ -23,6 +43,14 @@
   margin: 14px 0 !important;
   box-sizing: border-box !important;
   clear: both !important;
+}
+
+.artiz-dual-actions.artiz-single-action {
+  display: block !important;
+}
+.artiz-dual-actions.artiz-single-action .artiz-cod-trigger-btn {
+  width: 100% !important;
+  flex: none !important;
 }
 
 /* Base button styling - exactly identical dimensions, font, and alignment */
@@ -133,6 +161,56 @@
   0% { transform: scale(1); }
   50% { transform: scale(1.02); }
   100% { transform: scale(1); }
+}
+
+/* ============================================================
+   2.1 CART DRAWER & CART PAGE TRIGGER BUTTON
+   ============================================================ */
+.artiz-cart-cod-btn {
+  width: 100% !important;
+  min-height: 52px !important;
+  height: 52px !important;
+  margin: 12px 0 8px 0 !important;
+  padding: 0 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background: var(--artiz-primary, #008060) !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(0, 0, 0, 0.06) 100%) !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: var(--artiz-radius, 10px) !important;
+  font-family: inherit !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  box-shadow: 0 4px 14px rgba(0, 128, 96, 0.28) !important;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  user-select: none !important;
+}
+
+.artiz-cart-cod-btn:hover:not(:disabled) {
+  background-color: var(--artiz-primary-hover, #006e52) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(0, 128, 96, 0.38) !important;
+}
+
+.artiz-cart-cod-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+.artiz-cart-cod-btn .artiz-btn-icon {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
 }
 
 /* 3. Out-of-stock badge and graceful disabled button styling */

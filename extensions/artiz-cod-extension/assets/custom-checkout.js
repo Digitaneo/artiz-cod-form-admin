@@ -24,6 +24,16 @@
   let currentCalculatedShipping = { cost: 0, title: "توصيل سريع لجميع المدن", isFree: false };
   let activePaymentConfig = null;
   let selectedPaymentMethod = "cod";
+  const productDetailCache = {};
+
+  // Instant zero-flash mode initialization from cache
+  try {
+    const cachedMode = localStorage.getItem("artiz_button_mode");
+    if (cachedMode === "hijack") {
+      document.documentElement.classList.add("artiz-hijack-mode");
+      if (document.body) document.body.classList.add("artiz-hijack-mode");
+    }
+  } catch (_) {}
 
   function formatMoney(amount) {
     const num = Number(amount || 0);
@@ -302,7 +312,11 @@
   }
 
   // 1. Initialize
-  document.addEventListener("DOMContentLoaded", initArtizCOD);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initArtizCOD);
+  } else {
+    initArtizCOD();
+  }
 
   async function initArtizCOD() {
     const rootEl = document.getElementById("artiz-cod-global-root") || document.getElementById("artiz-cod-form-wrapper");
@@ -311,34 +325,16 @@
     storeMoneyFormat = rootEl?.dataset.moneyFormat || window.Shopify?.money_format || window.theme?.moneyFormat || "";
     storeMoneyWithCurrencyFormat = rootEl?.dataset.moneyWithCurrencyFormat || window.Shopify?.money_with_currency_format || "";
 
-    // Load store configuration and shipping settings from Worker
-    try {
-      const res = await fetch(`${WORKER_URL}/public/form-config?shop=${encodeURIComponent(currentShop)}`);
-      const json = await res.json();
-      activeConfig = json.data?.formConfig || json.formConfig || getFallbackConfig();
-      activeShippingConfig = json.data?.shippingConfig || null;
-      activePaymentConfig = json.data?.paymentConfig || null;
-      if (activePaymentConfig?.defaultMethod) {
-        selectedPaymentMethod = activePaymentConfig.defaultMethod;
-      }
-      if (activeShippingConfig?.shopCurrency) {
-        storeCurrency = activeShippingConfig.shopCurrency;
-      } else if (window.Shopify?.currency?.active) {
-        storeCurrency = window.Shopify.currency.active;
-      }
-    } catch (e) {
-      console.warn("[Artiz COD] Using fallback config:", e);
-      activeConfig = getFallbackConfig();
-    }
-
-    // Apply primary color if provided
+    // Synchronous Phase 1: Immediate instant setup (0ms) using fallback/cached config
+    activeConfig = getFallbackConfig();
+    if (rootEl?.dataset.primaryColor) activeConfig.primaryColor = rootEl.dataset.primaryColor;
+    if (rootEl?.dataset.buttonText) activeConfig.buttonText = rootEl.dataset.buttonText;
     if (activeConfig.primaryColor) {
       document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
     }
 
-    // Ensure active country location dataset is loaded
     const activeCountry = detectActiveCountryCode();
-    await ensureCountryLocationsLoaded(activeCountry);
+    ensureCountryLocationsLoaded(activeCountry);
 
     const isInline = activeConfig.displayMode === "inline_form" || activeConfig.displayMode === "embedded";
     const hasProductTarget = Boolean(document.querySelector('form[action*="/cart/add"]') || document.getElementById("artiz-cod-form-wrapper"));
@@ -347,21 +343,59 @@
       setupInlineProductForm();
     } else {
       injectModalContainer();
-      setupProductPageTrigger();
+      setupAllProductTriggers();
     }
-
     setupCartPageTrigger();
 
-    // Auto-discover dynamically opened theme cart drawers & re-bind triggers
-    if (window.MutationObserver && activeConfig.cartDrawerTrigger) {
-      let drawerTimeout = null;
-      const drawerObserver = new MutationObserver(() => {
-        if (drawerTimeout) clearTimeout(drawerTimeout);
-        drawerTimeout = setTimeout(() => {
+    // Background Phase 2: Asynchronously fetch remote config from Worker
+    fetch(`${WORKER_URL}/public/form-config?shop=${encodeURIComponent(currentShop)}`)
+      .then(r => r.json())
+      .then(json => {
+        const remoteConfig = json.data?.formConfig || json.formConfig;
+        if (remoteConfig) {
+          activeConfig = { ...activeConfig, ...remoteConfig };
+          try {
+            localStorage.setItem("artiz_button_mode", activeConfig.buttonMode || "replace");
+          } catch (_) {}
+          if (activeConfig.buttonMode === "hijack") {
+            document.documentElement.classList.add("artiz-hijack-mode");
+            if (document.body) document.body.classList.add("artiz-hijack-mode");
+          } else {
+            document.documentElement.classList.remove("artiz-hijack-mode");
+            if (document.body) document.body.classList.remove("artiz-hijack-mode");
+          }
+          if (activeConfig.primaryColor) {
+            document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
+          }
+          setupAllProductTriggers();
           setupCartPageTrigger();
-        }, 120);
+        }
+        activeShippingConfig = json.data?.shippingConfig || null;
+        activePaymentConfig = json.data?.paymentConfig || null;
+        if (activePaymentConfig?.defaultMethod) {
+          selectedPaymentMethod = activePaymentConfig.defaultMethod;
+        }
+        if (activeShippingConfig?.shopCurrency) {
+          storeCurrency = activeShippingConfig.shopCurrency;
+        } else if (window.Shopify?.currency?.active) {
+          storeCurrency = window.Shopify.currency.active;
+        }
+      })
+      .catch(e => {
+        console.warn("[Artiz COD] Using initial config:", e);
       });
-      drawerObserver.observe(document.body, { childList: true, subtree: true });
+
+    // Universal DOM MutationObserver: Re-attaches buttons on variant change & Section Rendering API
+    if (window.MutationObserver) {
+      let domTimeout = null;
+      const domObserver = new MutationObserver(() => {
+        if (domTimeout) clearTimeout(domTimeout);
+        domTimeout = setTimeout(() => {
+          setupAllProductTriggers();
+          setupCartPageTrigger();
+        }, 50);
+      });
+      domObserver.observe(document.body, { childList: true, subtree: true });
     }
 
     // Standard theme event listeners for cart changes
@@ -381,10 +415,17 @@
   }
 
   function getFallbackConfig() {
+    let cachedMode = "replace";
+    try {
+      cachedMode = localStorage.getItem("artiz_button_mode") || "replace";
+    } catch (_) {}
+
     return {
       displayMode: "popup_modal",
-      buttonText: "اشتري الآن - الدفع عند الاستلام",
-      formTitle: "إتمام الطلب - الدفع عند الاستلام",
+      buttonMode: cachedMode,
+      showAddToCartButton: true,
+      buttonText: "اطلب الآن",
+      formTitle: "إتمام الطلب",
       primaryColor: "#008060",
       enableDiscounts: true,
       enableAffiliateTracking: true,
@@ -396,11 +437,46 @@
     };
   }
 
-  // 2. Setup Product Page Trigger (Inline Form vs Modal/Drawer Trigger Buttons)
-  function setupProductPageTrigger() {
-    if (!activeConfig.directBuyTrigger) return;
+  function applyButtonReplacementStyles() {
+    if (activeConfig && activeConfig.buttonMode === "hijack") return;
+    if (document.getElementById("artiz-replacement-styles")) return;
 
-    const productForm = document.querySelector('form[action*="/cart/add"]');
+    const style = document.createElement("style");
+    style.id = "artiz-replacement-styles";
+    style.textContent = `
+      body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons button[type="submit"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons [data-shopify="payment-button"],
+      body:not(.artiz-hijack-mode) form[action*="/cart/add"] .shopify-payment-button,
+      body:not(.artiz-hijack-mode) form[action*="/cart/add"] > button[type="submit"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons button[type="submit"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons [data-shopify="payment-button"],
+      body:not(.artiz-hijack-mode) quick-buy-drawer .shopify-payment-button,
+      body:not(.artiz-hijack-mode) quick-buy-drawer button[name="add"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) cart-drawer form[action*="/cart"] button[name="checkout"],
+      body:not(.artiz-hijack-mode) .cart-drawer form[action*="/cart"] button[name="checkout"],
+      body:not(.artiz-hijack-mode) form.cart-form button[name="checkout"] {
+        display: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function setupAllProductTriggers() {
+    if (!activeConfig || !activeConfig.directBuyTrigger) return;
+    const forms = document.querySelectorAll('form[action*="/cart/add"]');
+    forms.forEach(f => {
+      setupProductPageTrigger(f);
+    });
+  }
+
+  // 2. Setup Product Page Trigger (Inline Form vs Modal/Drawer Trigger Buttons vs Native Hijack)
+  function setupProductPageTrigger(productForm) {
+    if (!activeConfig || !activeConfig.directBuyTrigger) return;
+
+    if (!productForm) {
+      productForm = document.querySelector('form[action*="/cart/add"]');
+    }
     if (!productForm) return;
 
     const isInline = activeConfig.displayMode === "inline_form" || activeConfig.displayMode === "embedded";
@@ -409,49 +485,91 @@
       return;
     }
 
-    if (document.getElementById("artiz-product-dual-actions")) return;
+    // --- Mode 2: Native Button Hijack ---
+    if (activeConfig.buttonMode === "hijack") {
+      setupNativeButtonHijack(productForm);
+      updateProductPageItems(productForm);
+      watchVariantChanges(productForm);
+      return;
+    }
+
+    // --- Mode 1: Button Replacement ---
+    applyButtonReplacementStyles();
+
+    // Check if this specific form or its immediate container already has actions container
+    const existingContainer = productForm.querySelector(".artiz-dual-actions")
+      || productForm.parentElement?.querySelector(":scope > .artiz-dual-actions")
+      || (productForm.id ? document.querySelector(`.artiz-dual-actions[data-for-form="${productForm.id}"]`) : null);
+
+    if (existingContainer) {
+      // Clean up any extra accidental duplicate sibling containers
+      const allNearby = (productForm.parentElement || productForm).querySelectorAll(".artiz-dual-actions");
+      if (allNearby.length > 1) {
+        for (let i = 1; i < allNearby.length; i++) {
+          allNearby[i].remove();
+        }
+      }
+
+      // Update visibility of Add to Cart button if settings changed
+      const addCartBtn = existingContainer.querySelector(".artiz-secondary-btn");
+      if (activeConfig.showAddToCartButton === false) {
+        if (addCartBtn) addCartBtn.remove();
+        existingContainer.classList.add("artiz-single-action");
+      }
+      updateProductPageItems(productForm);
+      return;
+    }
+
+    // If an App Block (#artiz-cod-form-wrapper) is already present and visible in this product section, do not duplicate!
+    const nearbyAppBlock = productForm.closest(".product, .product-info, [data-section-type='product'], main")?.querySelector("#artiz-cod-form-wrapper");
+    if (nearbyAppBlock) {
+      updateProductPageItems(productForm);
+      return;
+    }
 
     const container = document.createElement("div");
-    container.id = "artiz-product-dual-actions";
+    if (productForm.id) container.setAttribute("data-for-form", productForm.id);
     container.className = "artiz-dual-actions";
 
-    const addCartBtn = document.createElement("button");
-    addCartBtn.type = "button";
-    addCartBtn.id = "artiz-product-add-cart-btn";
-    addCartBtn.className = "artiz-btn artiz-btn-secondary artiz-secondary-btn";
-    addCartBtn.innerHTML = `
-      <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
-        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-      </svg>
-      <span id="artiz-add-cart-text">أضف إلى السلة</span>
-    `;
+    if (activeConfig.showAddToCartButton !== false) {
+      const addCartBtn = document.createElement("button");
+      addCartBtn.type = "button";
+      addCartBtn.className = "artiz-btn artiz-btn-secondary artiz-secondary-btn";
+      addCartBtn.innerHTML = `
+        <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+        </svg>
+        <span id="artiz-add-cart-text">أضف إلى السلة</span>
+      `;
 
-    addCartBtn.addEventListener("click", async function (e) {
-      e.preventDefault();
-      await handleAddToCart(productForm, addCartBtn);
-    });
+      addCartBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        handleAddToCart(productForm, addCartBtn);
+      });
+      container.appendChild(addCartBtn);
+    } else {
+      container.classList.add("artiz-single-action");
+    }
 
     const buyNowBtn = document.createElement("button");
     buyNowBtn.type = "button";
-    buyNowBtn.id = "artiz-direct-buy-btn";
     buyNowBtn.className = "artiz-btn artiz-btn-primary artiz-cod-trigger-btn artiz-pulse";
     buyNowBtn.innerHTML = `
       <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
       </svg>
-      <span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن - الدفع عند الاستلام"}</span>
+      <span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن"}</span>
     `;
 
-    buyNowBtn.addEventListener("click", async function (e) {
+    buyNowBtn.addEventListener("click", function (e) {
       e.preventDefault();
-      await handleSmartCheckout(productForm);
+      handleSmartCheckout(productForm);
     });
 
-    container.appendChild(addCartBtn);
     container.appendChild(buyNowBtn);
 
-    const submitBtn = productForm.querySelector('button[type="submit"], input[type="submit"]');
+    const submitBtn = productForm.querySelector('buy-buttons, .product-form__buttons, button[type="submit"], input[type="submit"]');
     if (submitBtn && submitBtn.parentNode) {
       submitBtn.parentNode.insertBefore(container, submitBtn.nextSibling);
     } else {
@@ -460,6 +578,32 @@
 
     updateProductPageItems(productForm);
     watchVariantChanges(productForm);
+  }
+
+  function setupNativeButtonHijack(productForm) {
+    if (!productForm) return;
+
+    const buyNowSelectors = [
+      '[data-shopify="payment-button"] button',
+      '.shopify-payment-button__button',
+      'shopify-buy-it-now-button button',
+      '.shopify-payment-button [role="button"]',
+      'buy-buttons [data-shopify="payment-button"] button',
+      'button.shopify-payment-button__button--unbranded'
+    ];
+
+    const buyNowBtns = productForm.querySelectorAll(buyNowSelectors.join(", "));
+    buyNowBtns.forEach(btn => {
+      if (!btn._artizHijacked) {
+        btn._artizHijacked = true;
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          handleSmartCheckout(productForm);
+        }, true);
+      }
+    });
   }
 
   function setupInlineProductForm(productForm) {
@@ -616,8 +760,12 @@
       const pathname = window.location.pathname;
       const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
       if (productHandle) {
-        const pRes = await fetch(`/products/${productHandle}.js`);
-        const pData = await pRes.json();
+        let pData = productDetailCache[productHandle];
+        if (!pData) {
+          const pRes = await fetch(`/products/${productHandle}.js`);
+          pData = await pRes.json();
+          productDetailCache[productHandle] = pData;
+        }
         title = pData.title;
         image = pData.featured_image || "";
         const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
@@ -638,56 +786,7 @@
 
     if (!variantId) return;
 
-    // Update Storefront Dual Action Buttons according to inventory
-    const addCartBtn = document.getElementById("artiz-product-add-cart-btn");
-    const buyNowBtn = document.getElementById("artiz-direct-buy-btn");
-    const blockTriggerBtn = document.getElementById("artiz-block-trigger-btn");
-
-    if (!isAvailable) {
-      if (addCartBtn) {
-        addCartBtn.disabled = true;
-        addCartBtn.classList.add("artiz-btn-disabled");
-        const tSpan = addCartBtn.querySelector("#artiz-add-cart-text") || addCartBtn;
-        tSpan.textContent = "نفذ من المخزون";
-      }
-      if (buyNowBtn) {
-        buyNowBtn.disabled = true;
-        buyNowBtn.classList.add("artiz-btn-disabled");
-        buyNowBtn.classList.remove("artiz-pulse");
-        const tSpan = buyNowBtn.querySelector("#artiz-buy-now-text") || buyNowBtn;
-        tSpan.textContent = "نفذ من المخزون";
-      }
-      if (blockTriggerBtn) {
-        blockTriggerBtn.disabled = true;
-        blockTriggerBtn.classList.add("artiz-btn-disabled");
-        blockTriggerBtn.classList.remove("artiz-pulse");
-        const span = blockTriggerBtn.querySelector("span") || blockTriggerBtn;
-        span.textContent = "نفذ من المخزون";
-      }
-    } else {
-      if (addCartBtn) {
-        addCartBtn.disabled = false;
-        addCartBtn.classList.remove("artiz-btn-disabled");
-        const tSpan = addCartBtn.querySelector("#artiz-add-cart-text") || addCartBtn;
-        tSpan.textContent = "أضف إلى السلة";
-      }
-      if (buyNowBtn) {
-        buyNowBtn.disabled = false;
-        buyNowBtn.classList.remove("artiz-btn-disabled");
-        buyNowBtn.classList.add("artiz-pulse");
-        const tSpan = buyNowBtn.querySelector("#artiz-buy-now-text") || buyNowBtn;
-        tSpan.textContent = activeConfig?.buttonText || "اطلب الآن - الدفع عند الاستلام";
-      }
-      if (blockTriggerBtn) {
-        blockTriggerBtn.disabled = false;
-        blockTriggerBtn.classList.remove("artiz-btn-disabled");
-        blockTriggerBtn.classList.add("artiz-pulse");
-        const span = blockTriggerBtn.querySelector("span") || blockTriggerBtn;
-        span.textContent = activeConfig?.buttonText || "اشتري الآن - الدفع عند الاستلام";
-      }
-    }
-
-    // Inspect Active Cart Items
+    // Inspect Active Cart Items to support smart multi-item checkout even when current variant is out of stock
     let otherCartItems = [];
     let matchingCartItem = null;
 
@@ -703,6 +802,55 @@
           .map(item => mapCartItemToOrderItem(item));
       }
     } catch (_) { }
+
+    const hasOtherCartProducts = otherCartItems.length > 0;
+
+    // Update Storefront Dual Action Buttons according to inventory & cart status
+    const addCartBtns = document.querySelectorAll(".artiz-secondary-btn, #artiz-product-add-cart-btn");
+    const buyNowBtns = document.querySelectorAll(".artiz-cod-trigger-btn:not(.artiz-cart-cod-btn), #artiz-direct-buy-btn, #artiz-block-trigger-btn");
+
+    if (!isAvailable) {
+      // 1. Add to Cart: strictly disabled when variant is out of stock
+      addCartBtns.forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add("artiz-btn-disabled");
+        const tSpan = btn.querySelector("#artiz-add-cart-text") || btn.querySelector("span") || btn;
+        tSpan.textContent = "غير متوفر";
+      });
+
+      // 2. Buy Now: if other products exist in cart, enable checkout for them; if cart is empty, disable button
+      buyNowBtns.forEach(btn => {
+        if (hasOtherCartProducts) {
+          btn.disabled = false;
+          btn.classList.remove("artiz-btn-disabled");
+          btn.classList.add("artiz-pulse");
+          const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
+          tSpan.textContent = "إتمام طلب السلة";
+        } else {
+          btn.disabled = true;
+          btn.classList.add("artiz-btn-disabled");
+          btn.classList.remove("artiz-pulse");
+          const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
+          tSpan.textContent = "غير متوفر";
+        }
+      });
+    } else {
+      // In stock
+      addCartBtns.forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove("artiz-btn-disabled");
+        const tSpan = btn.querySelector("#artiz-add-cart-text") || btn.querySelector("span") || btn;
+        tSpan.textContent = "أضف إلى السلة";
+      });
+
+      buyNowBtns.forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove("artiz-btn-disabled");
+        btn.classList.add("artiz-pulse");
+        const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
+        tSpan.textContent = activeConfig?.buttonText || "اطلب الآن";
+      });
+    }
 
     // Build Current Product with full cart discount awareness and accurate stock status
     let currentProduct;
@@ -751,152 +899,24 @@
     renderOrderItemsList();
   }
 
-  async function handleAddToCart(productForm, btn) {
-    const textSpan = btn.querySelector("#artiz-add-cart-text") || btn;
-    const origText = textSpan ? textSpan.textContent : "أضف إلى السلة";
+  function handleSmartCheckout(productForm) {
+    handleDirectProductBuy(productForm);
+  }
 
-    // 1. Proactively check if currently selected variant is out of stock
+  function handleDirectProductBuy(productForm) {
     const currentProduct = orderItems.find(i => i.isCurrentProduct);
-    if ((currentProduct && currentProduct.available === false) || btn.disabled) {
-      alert("عذراً، هذا الخيار أو المتغير (القياس/اللون) نفذ من المخزون حالياً ولا يمكن إضافته للسلة.");
-      return;
-    }
+    const otherCartItems = orderItems.filter(i => !i.isCurrentProduct);
 
-    if (textSpan) textSpan.textContent = "جاري الإضافة...";
-    btn.disabled = true;
-
-    try {
-      const formData = new FormData(productForm);
-      const res = await fetch("/cart/add.js", {
-        method: "POST",
-        body: formData
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        const errMsg = errJson.description || errJson.message || "عذراً، نفذت كمية هذا المنتج من المخزون.";
-        alert(errMsg);
-        if (textSpan) textSpan.textContent = "نفذ من المخزون";
-        btn.disabled = true;
-        btn.classList.add("artiz-btn-disabled");
+    // If current variant is unavailable
+    if (currentProduct && currentProduct.available === false) {
+      if (otherCartItems.length > 0) {
+        orderItems = otherCartItems;
+        openArtizModal();
+        return;
+      } else {
+        alert("عذراً، هذا المنتج غير متوفر حالياً ولا توجد منتجات أخرى في سلتك.");
         return;
       }
-
-      if (textSpan) textSpan.textContent = "تمت الإضافة بنجاح ✓";
-      setTimeout(() => {
-        if (textSpan) textSpan.textContent = origText;
-        btn.disabled = false;
-      }, 1500);
-
-      const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
-      countBadges.forEach(b => {
-        const current = parseInt(b.textContent, 10) || 0;
-        b.textContent = current + 1;
-      });
-    } catch (e) {
-      alert("تعذر إضافة المنتج للسلة، يرجى المحاولة لاحقاً.");
-      if (textSpan) textSpan.textContent = origText;
-      btn.disabled = false;
-    }
-  }
-
-  async function handleSmartCheckout(productForm) {
-    await handleDirectProductBuy(productForm);
-  }
-
-  async function handleDirectProductBuy(productForm) {
-    let variantId = null;
-    try {
-      const fd = new FormData(productForm);
-      variantId = fd.get("id");
-    } catch (_) {}
-    if (!variantId) {
-      const variantInput = productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])') || productForm.querySelector('input[name="id"], select[name="id"]');
-      variantId = variantInput ? variantInput.value : null;
-    }
-    if (!variantId && productForm.id) {
-      const extInput = document.querySelector(`input[name="id"][form="${productForm.id}"], select[name="id"][form="${productForm.id}"]`);
-      if (extInput) variantId = extInput.value;
-    }
-    if (!variantId) {
-      const anyId = document.querySelector('input[name="id"], select[name="id"]');
-      if (anyId) variantId = anyId.value;
-    }
-    if (!variantId) {
-      const urlParams = new URLSearchParams(window.location.search);
-      variantId = urlParams.get("variant");
-    }
-    const qtyInput = productForm.querySelector('input[name="quantity"]');
-    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
-
-    let currentProduct = null;
-
-    if (variantId) {
-      let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
-      let price = 0;
-      let originalPrice = 0;
-      let image = "";
-      let variantTitle = "";
-      let isAvailable = true;
-
-      try {
-        const pathname = window.location.pathname;
-        const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
-        if (productHandle) {
-          const pRes = await fetch(`/products/${productHandle}.js`);
-          const pData = await pRes.json();
-          title = pData.title;
-          image = pData.featured_image || "";
-          const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
-          if (variantObj) {
-            isAvailable = variantObj.available !== false;
-            price = variantObj.price / 100;
-            originalPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
-            variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
-            if (variantObj.featured_image?.src) {
-              image = variantObj.featured_image.src;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch product details", e);
-      }
-
-      if (!isAvailable) {
-        alert("عذراً، هذا المنتج أو المتغير (القياس/اللون) نفذ من المخزون حالياً ولا يمكن طلبه.");
-        return;
-      }
-
-      currentProduct = {
-        variantId,
-        title,
-        variantTitle,
-        price,
-        originalPrice: originalPrice > price ? originalPrice : price,
-        image,
-        quantity,
-        available: isAvailable,
-        isCurrentProduct: true
-      };
-    }
-
-    // Inspect Cart
-    try {
-      const cRes = await fetch("/cart.js");
-      const cart = await cRes.json();
-      if (cart.currency) storeCurrency = cart.currency;
-
-      if (cart.items && cart.items.length > 0) {
-        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
-
-        if (currentProduct && !orderItems.some(i => String(i.variantId) === String(currentProduct.variantId))) {
-          orderItems.unshift(currentProduct);
-        }
-      } else if (currentProduct) {
-        orderItems = [currentProduct];
-      }
-    } catch (_) {
-      if (currentProduct) orderItems = [currentProduct];
     }
 
     if (orderItems.length === 0) {
@@ -904,48 +924,88 @@
       return;
     }
 
+    // Immediate instant modal opening (0ms delay)
     openArtizModal();
+
+    // Background cart sync (non-blocking)
+    fetch("/cart.js?_t=" + Date.now())
+      .then(r => r.json())
+      .then(cart => {
+        if (cart) syncOrderItemsFromCart(cart);
+      })
+      .catch(() => {});
   }
 
-  async function handleCartCheckout() {
-    try {
-      const res = await fetch("/cart.js?_t=" + Date.now());
-      const cart = await res.json();
-      if (cart.currency) storeCurrency = cart.currency;
-
-      if (!cart.items || cart.items.length === 0) {
-        alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
-        return;
-      }
-
-      orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+  function handleCartCheckout() {
+    // If orderItems is already loaded in memory, open modal immediately!
+    if (orderItems && orderItems.length > 0) {
       openArtizModal();
-    } catch (e) {
-      alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
     }
+
+    fetch("/cart.js?_t=" + Date.now())
+      .then(r => r.json())
+      .then(cart => {
+        if (cart.currency) storeCurrency = cart.currency;
+        if (!cart.items || cart.items.length === 0) {
+          if (!orderItems || orderItems.length === 0) {
+            alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
+            return;
+          }
+        } else {
+          orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+          openArtizModal();
+        }
+      })
+      .catch(() => {
+        if (!orderItems || orderItems.length === 0) {
+          alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
+        }
+      });
   }
 
   // 3. Setup Cart Page & Drawer Triggers
   function setupCartPageTrigger() {
-    if (!activeConfig.cartDrawerTrigger) return;
+    if (!activeConfig || !activeConfig.cartDrawerTrigger) return;
 
     // Discover cart forms on page or inside drawers/popups
-    const cartForms = document.querySelectorAll('form[action="/cart"], form[action*="/cart?"], [data-cart-drawer] form, cart-drawer form');
+    const cartForms = document.querySelectorAll('form[action="/cart"], form[action*="/cart?"], [data-cart-drawer] form, cart-drawer form, .cart-drawer form');
     cartForms.forEach(cartForm => {
-      if (cartForm.querySelector(".artiz-cart-cod-btn")) return;
-
       const checkoutBtn = cartForm.querySelector('[name="checkout"], input[type="submit"][value*="checkout" i], button[type="submit"], .cart__checkout-button, .drawer__checkout');
       if (!checkoutBtn) return;
 
+      if (activeConfig.buttonMode === "hijack") {
+        if (!checkoutBtn._artizHijacked) {
+          checkoutBtn._artizHijacked = true;
+          checkoutBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            handleCartCheckout();
+          }, true);
+        }
+        return;
+      }
+
+      // Replace Mode: Hide native checkout button and show COD checkout button
+      checkoutBtn.style.display = "none";
+
+      if (cartForm.querySelector(".artiz-cart-cod-btn")) return;
+
       const codCartBtn = document.createElement("button");
       codCartBtn.type = "button";
-      codCartBtn.className = "artiz-cod-trigger-btn artiz-cart-cod-btn";
-      codCartBtn.innerHTML = `<span>إتمام الطلب - الدفع عند الاستلام</span>`;
+      codCartBtn.className = "artiz-cart-cod-btn artiz-pulse";
+      codCartBtn.innerHTML = `
+        <svg class="artiz-btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>إتمام الطلب</span>
+      `;
 
-      codCartBtn.addEventListener("click", async function (e) {
+      codCartBtn.addEventListener("click", function (e) {
         e.preventDefault();
         e.stopPropagation();
-        await handleCartCheckout();
+        handleCartCheckout();
       });
 
       if (checkoutBtn.parentNode) {
@@ -1009,24 +1069,6 @@
 
     if (changed) {
       renderOrderItemsList();
-    }
-  }
-
-  async function handleCartCheckout() {
-    try {
-      const res = await fetch("/cart.js");
-      const cart = await res.json();
-      if (cart.currency) storeCurrency = cart.currency;
-
-      if (!cart.items || cart.items.length === 0) {
-        alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
-        return;
-      }
-
-      orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
-      openArtizModal();
-    } catch (e) {
-      alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
     }
   }
 
@@ -1124,7 +1166,7 @@
     return `
       <div class="artiz-modal-container" id="${isInline ? 'artiz-inline-box' : 'artiz-modal-box'}">
         <div class="artiz-modal-header">
-          <h3>${activeConfig.formTitle || "إتمام الطلب - الدفع عند الاستلام"}</h3>
+          <h3>${activeConfig.formTitle || "إتمام الطلب"}</h3>
           ${!isInline ? `<button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>` : ""}
         </div>
 
