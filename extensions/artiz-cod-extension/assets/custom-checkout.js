@@ -332,8 +332,8 @@
 
     // Synchronous Phase 1: Immediate instant setup (0ms) using fallback/cached config
     activeConfig = getFallbackConfig();
-    if (rootEl?.dataset.primaryColor) activeConfig.primaryColor = rootEl.dataset.primaryColor;
-    if (rootEl?.dataset.buttonText) activeConfig.buttonText = rootEl.dataset.buttonText;
+    if (rootEl?.dataset.primaryColor && !activeConfig.primaryColor) activeConfig.primaryColor = rootEl.dataset.primaryColor;
+    if (rootEl?.dataset.buttonText && !activeConfig.buttonText) activeConfig.buttonText = rootEl.dataset.buttonText;
     if (activeConfig.primaryColor) {
       document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
     }
@@ -360,6 +360,7 @@
         if (remoteConfig) {
           activeConfig = { ...activeConfig, ...remoteConfig };
           try {
+            localStorage.setItem("artiz_form_config", JSON.stringify(remoteConfig));
             localStorage.setItem("artiz_button_mode", activeConfig.buttonMode || "replace");
           } catch (_) { }
           if (activeConfig.buttonMode === "hijack") {
@@ -372,6 +373,19 @@
           if (activeConfig.primaryColor) {
             document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
           }
+
+          // Instantly sync UI text variables to active DOM elements
+          const buyTexts = document.querySelectorAll("#artiz-buy-now-text");
+          buyTexts.forEach(el => { el.textContent = activeConfig.buttonText || "أطلب الآن"; });
+          const addCartTexts = document.querySelectorAll("#artiz-add-cart-text");
+          addCartTexts.forEach(el => { el.textContent = activeConfig.addToCartButtonText || "أضف إلى السلة"; });
+          const cartBtnTexts = document.querySelectorAll(".artiz-cart-cod-btn span");
+          cartBtnTexts.forEach(el => { el.textContent = activeConfig.cartCheckoutButtonText || "إتمام الطلب"; });
+          const formTitles = document.querySelectorAll(".artiz-modal-header h3");
+          formTitles.forEach(el => { el.textContent = activeConfig.formTitle || "معلومات الطلب"; });
+          const submitLabels = document.querySelectorAll("#artiz-btn-label");
+          submitLabels.forEach(el => { el.textContent = getSubmitButtonLabel(); });
+
           setupAllProductTriggers();
           setupCartPageTrigger();
         }
@@ -434,18 +448,38 @@
   }
 
   function getFallbackConfig() {
-    let cachedMode = "replace";
+    let cached = {};
     try {
-      cachedMode = localStorage.getItem("artiz_button_mode") || "replace";
+      const stored = localStorage.getItem("artiz_form_config");
+      if (stored) cached = JSON.parse(stored) || {};
     } catch (_) { }
 
-    return {
+    let cachedMode = cached.buttonMode || "replace";
+    try {
+      if (!cached.buttonMode) {
+        cachedMode = localStorage.getItem("artiz_button_mode") || "replace";
+      }
+    } catch (_) { }
+
+    const defaults = {
       displayMode: "popup_modal",
       buttonMode: cachedMode,
       showAddToCartButton: true,
-      buttonText: "اطلب الآن",
-      formTitle: "إتمام الطلب",
-      primaryColor: "#008060",
+      // Dedicated UI Text Identifiers
+      buttonText: "أطلب الآن",
+      submitButtonText: "إكمال الدفع",
+      formTitle: "معلومات الطلب",
+      addToCartButtonText: "أضف إلى السلة",
+      addingToCartText: "جاري الإضافة...",
+      addedToCartText: "✓ تمت الإضافة",
+      cartCheckoutButtonText: "إتمام الطلب",
+      submittingOrderText: "جاري تأكيد وتسجيل طلبك...",
+      outOfStockText: "غير متوفر",
+      checkoutCartOnlyText: "إتمام طلب السلة",
+      emptyCartText: "السلة فارغة",
+      emptyCartAlert: "سلة التسوق فارغة، يرجى إضافة منتجات أولاً.",
+      primaryColor: "#020a25",
+      secondaryColor: "#ffffff",
       enableDiscounts: true,
       enableAffiliateTracking: true,
       enableCartSummary: true,
@@ -454,7 +488,10 @@
       requiredFields: { name: true, phone: true, city: true, address: true, note: false },
       citiesList: ["الدار البيضاء", "الرباط", "مراكش", "فاس", "طنجة", "أكادير", "الرياض", "جدة", "أخرى"]
     };
+
+    return Object.assign(defaults, cached);
   }
+
 
   function applyButtonReplacementStyles() {
     if (activeConfig && activeConfig.buttonMode === "hijack") return;
@@ -557,7 +594,7 @@
           <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
         </svg>
-        <span id="artiz-add-cart-text">أضف إلى السلة</span>
+        <span id="artiz-add-cart-text">${activeConfig.addToCartButtonText || "أضف إلى السلة"}</span>
       `;
 
       addCartBtn.addEventListener("click", function (e) {
@@ -576,7 +613,7 @@
       <svg class="artiz-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
       </svg>
-      <span id="artiz-buy-now-text">${activeConfig.buttonText || "اطلب الآن"}</span>
+      <span id="artiz-buy-now-text">${activeConfig.buttonText || "أطلب الآن"}</span>
     `;
 
     buyNowBtn.addEventListener("click", function (e) {
@@ -839,7 +876,7 @@
         btn.disabled = true;
         btn.classList.add("artiz-btn-disabled");
         const tSpan = btn.querySelector("#artiz-add-cart-text") || btn.querySelector("span") || btn;
-        tSpan.textContent = "غير متوفر";
+        tSpan.textContent = activeConfig?.outOfStockText || "غير متوفر";
       });
 
       let hasCartItems = false;
@@ -855,13 +892,13 @@
           btn.classList.remove("artiz-btn-disabled");
           btn.classList.add("artiz-pulse");
           const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
-          tSpan.textContent = "إتمام طلب السلة";
+          tSpan.textContent = activeConfig?.checkoutCartOnlyText || "إتمام طلب السلة";
         } else {
           btn.disabled = true;
           btn.classList.add("artiz-btn-disabled");
           btn.classList.remove("artiz-pulse");
           const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
-          tSpan.textContent = "غير متوفر";
+          tSpan.textContent = activeConfig?.outOfStockText || "غير متوفر";
         }
       });
     } else {
@@ -869,7 +906,7 @@
         btn.disabled = false;
         btn.classList.remove("artiz-btn-disabled");
         const tSpan = btn.querySelector("#artiz-add-cart-text") || btn.querySelector("span") || btn;
-        tSpan.textContent = "أضف إلى السلة";
+        tSpan.textContent = activeConfig?.addToCartButtonText || "أضف إلى السلة";
       });
 
       buyNowBtns.forEach(btn => {
@@ -877,7 +914,7 @@
         btn.classList.remove("artiz-btn-disabled");
         btn.classList.add("artiz-pulse");
         const tSpan = btn.querySelector("#artiz-buy-now-text") || btn.querySelector("span") || btn;
-        tSpan.textContent = activeConfig?.buttonText || "اطلب الآن";
+        tSpan.textContent = activeConfig?.buttonText || "أطلب الآن";
       });
     }
   }
@@ -923,7 +960,7 @@
       addCartBtn.classList.add("artiz-btn-loading");
       addCartBtn.innerHTML = `
         <span class="artiz-spinner-sm"></span>
-        <span>جاري الإضافة...</span>
+        <span>${activeConfig?.addingToCartText || "جاري الإضافة..."}</span>
       `;
     }
 
@@ -966,7 +1003,7 @@
 
         if (addCartBtn) {
           addCartBtn.innerHTML = `
-            <span>✓ تمت الإضافة</span>
+            <span>${activeConfig?.addedToCartText || "✓ تمت الإضافة"}</span>
           `;
           setTimeout(() => {
             addCartBtn.innerHTML = origHtml;
@@ -1002,7 +1039,7 @@
       origBtnContent = triggerBtn.innerHTML;
       triggerBtn.disabled = true;
       triggerBtn.classList.add("artiz-btn-loading");
-      triggerBtn.innerHTML = `<span class="artiz-spinner-sm"></span> <span>جاري التحميل...</span>`;
+      triggerBtn.innerHTML = `<span class="artiz-spinner-sm"></span> <span>${activeConfig?.submittingOrderText || "جاري التحميل..."}</span>`;
     }
 
     try {
@@ -1028,17 +1065,22 @@
         return;
       }
 
-      // Add to Shopify cart
-      if (details.variantId) {
+      // Add to Shopify cart with sanitized variantId
+      const cleanVariantId = details.variantId ? String(details.variantId).replace(/\D/g, "") : null;
+      if (cleanVariantId) {
         const addData = new FormData();
-        addData.append("id", details.variantId);
+        addData.append("id", cleanVariantId);
         addData.append("quantity", quantity);
 
-        await fetch("/cart/add.js", {
-          method: "POST",
-          body: addData,
-          headers: { "X-Requested-With": "XMLHttpRequest" }
-        });
+        try {
+          await fetch("/cart/add.js", {
+            method: "POST",
+            body: addData,
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+          });
+        } catch (addErr) {
+          console.warn("[Artiz COD] /cart/add.js error:", addErr);
+        }
       }
 
       // Fetch the updated cart - Single Source of Truth!
@@ -1048,12 +1090,26 @@
 
       if (cart.items && cart.items.length > 0) {
         orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      } else if (cleanVariantId) {
+        // Fallback directly to current variant so modal is never blank
+        orderItems = [{
+          variantId: cleanVariantId,
+          title: details.title || "المنتج",
+          variantTitle: details.variantTitle || "",
+          price: details.price || 0,
+          originalPrice: (details.compareAtPrice > details.price ? details.compareAtPrice : details.price) || 0,
+          unitDiscount: 0,
+          cartDiscountPercent: 0,
+          image: details.image || "",
+          quantity: quantity,
+          available: details.available !== false
+        }];
       }
 
       const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
-      countBadges.forEach(b => { b.textContent = cart.item_count || 0; });
+      countBadges.forEach(b => { b.textContent = cart.item_count || orderItems.reduce((s, i) => s + i.quantity, 0); });
 
-      // Open the modal with authentic cart data
+      // Open the modal with authentic data
       openArtizModal();
 
     } catch (err) {
@@ -1063,9 +1119,9 @@
         const cart = await cRes.json();
         if (cart.items && cart.items.length > 0) {
           orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
-          openArtizModal();
         }
       } catch (_) { }
+      openArtizModal();
     } finally {
       if (triggerBtn) {
         triggerBtn.innerHTML = origBtnContent;
@@ -1082,7 +1138,7 @@
       if (cart.currency) storeCurrency = cart.currency;
 
       if (!cart.items || cart.items.length === 0) {
-        alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
+        alert(activeConfig?.emptyCartAlert || "سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
         return;
       }
 
@@ -1129,7 +1185,7 @@
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
-        <span>إتمام الطلب</span>
+        <span>${activeConfig?.cartCheckoutButtonText || "إتمام الطلب"}</span>
       `;
 
       codCartBtn.addEventListener("click", function (e) {
@@ -1274,7 +1330,7 @@
     return `
       <div class="artiz-modal-container" id="${isInline ? 'artiz-inline-box' : 'artiz-modal-box'}">
         <div class="artiz-modal-header">
-          <h3>${activeConfig.formTitle || "إتمام الطلب - الدفع عند الاستلام"}</h3>
+          <h3>${activeConfig.formTitle || "معلومات الطلب"}</h3>
           ${!isInline ? `<button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>` : ""}
         </div>
 
@@ -1608,9 +1664,9 @@
       matchCustomerCascadingLocation();
     }
 
-    renderOrderItemsList();
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
+    renderOrderItemsList(true);
   }
 
   function closeArtizModal() {
@@ -1642,7 +1698,7 @@
   window.artizCloseModal = closeArtizModal;
 
   // 6. Render Items List & Recalculate Totals
-  function renderOrderItemsList() {
+  function renderOrderItemsList(force = false) {
     const container = document.getElementById("artiz-items-render-list");
     const summaryLines = document.getElementById("artiz-summary-lines");
     const freeShippingContainer = document.getElementById("artiz-free-shipping-container");
@@ -1650,13 +1706,13 @@
 
     // Do not run rendering work if modal is closed and we are not in inline mode
     const isInline = document.getElementById("artiz-inline-product-form") !== null;
-    if (!isInline && !isModalOpen()) return;
+    if (!force && !isInline && !isModalOpen()) return;
 
     const activeCountryCode = detectActiveCountryCode();
     const submitBtn = document.getElementById("artiz-submit-order-btn");
 
     if (orderItems.length === 0) {
-      container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:14px; margin:20px 0;">السلة فارغة</p>`;
+      container.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:14px; margin:20px 0;">${activeConfig?.emptyCartText || "السلة فارغة"}</p>`;
       summaryLines.innerHTML = "";
       if (freeShippingContainer) freeShippingContainer.innerHTML = "";
       if (submitBtn) submitBtn.disabled = true;
@@ -2078,7 +2134,7 @@
 
     if (submitBtn) submitBtn.disabled = true;
     if (spinner) spinner.style.display = "inline-block";
-    if (label) label.textContent = "جاري تأكيد وتسجيل طلبك...";
+    if (label) label.textContent = activeConfig?.submittingOrderText || "جاري تأكيد وتسجيل طلبك...";
 
     try {
       const affiliateData = getAffiliateTrackingData();

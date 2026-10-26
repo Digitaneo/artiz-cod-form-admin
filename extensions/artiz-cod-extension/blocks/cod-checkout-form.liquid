@@ -99,7 +99,7 @@
     id="artiz-block-trigger-btn"
     onclick="if(window.artizOpenModal) window.artizOpenModal(); else document.getElementById('artiz-direct-buy-btn')?.click();"
   >
-    <span>{{ block.settings.button_title | default: "اطلب الآن - الدفع عند الاستلام" }}</span>
+    <span>{{ block.settings.button_title | default: "أطلب الآن" }}</span>
   </button>
 </div>
 
@@ -134,7 +134,7 @@
       "type": "text",
       "id": "button_title",
       "label": "Button Label",
-      "default": "اشتري الآن - الدفع عند الاستلام"
+      "default": "أطلب الآن"
     }
   ]
 }

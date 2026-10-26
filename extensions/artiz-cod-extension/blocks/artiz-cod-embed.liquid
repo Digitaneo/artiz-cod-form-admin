@@ -93,7 +93,7 @@
     data-money-format="{{ shop.money_format | escape }}"
     data-money-with-currency-format="{{ shop.money_with_currency_format | escape }}"
     data-primary-color="{{ block.settings.primary_color | default: '#008060' }}"
-    data-button-text="{{ block.settings.button_text | default: 'اشتري الآن - الدفع عند الاستلام' }}"
+    data-button-text="{{ block.settings.button_text }}"
   ></div>
 
   {% case detected_country %}
@@ -140,7 +140,7 @@
       "type": "text",
       "id": "button_text",
       "label": "نص زر الطلب السريع (Button Text)",
-      "default": "اشتري الآن - الدفع عند الاستلام"
+      "default": "أطلب الآن"
     }
   ]
 }

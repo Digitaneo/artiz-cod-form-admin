@@ -23,9 +23,12 @@ export async function loader({ request }) {
     const data = await fetchWorker(request, "/settings");
     const formConfig = data.config?.settings?.formConfig || data.config?.formConfig || {
       displayMode: "popup_modal",
-      buttonText: "اشتري الآن - الدفع عند الاستلام",
-      formTitle: "إتمام الطلب - الدفع عند الاستلام",
-      primaryColor: "#008060",
+      buttonText: "أطلب الآن",
+      submitButtonText: "إكمال الدفع",
+      formTitle: "معلومات الطلب",
+      addToCartButtonText: "أضف إلى السلة",
+      cartCheckoutButtonText: "إتمام الطلب",
+      primaryColor: "#020a25",
       secondaryColor: "#ffffff",
       enableDiscounts: true,
       enableAffiliateTracking: true,
@@ -79,9 +82,12 @@ export default function FormBuilderPage() {
 
   // Form State
   const [displayMode, setDisplayMode] = useState(config.displayMode || "popup_modal");
-  const [buttonText, setButtonText] = useState(config.buttonText || "اشتري الآن - الدفع عند الاستلام");
-  const [formTitle, setFormTitle] = useState(config.formTitle || "إتمام الطلب - الدفع عند الاستلام");
-  const [primaryColor, setPrimaryColor] = useState(config.primaryColor || "#008060");
+  const [buttonText, setButtonText] = useState(config.buttonText || "أطلب الآن");
+  const [submitButtonText, setSubmitButtonText] = useState(config.submitButtonText || "إكمال الدفع");
+  const [formTitle, setFormTitle] = useState(config.formTitle || "معلومات الطلب");
+  const [addToCartButtonText, setAddToCartButtonText] = useState(config.addToCartButtonText || "أضف إلى السلة");
+  const [cartCheckoutButtonText, setCartCheckoutButtonText] = useState(config.cartCheckoutButtonText || "إتمام الطلب");
+  const [primaryColor, setPrimaryColor] = useState(config.primaryColor || "#020a25");
   const [enableDiscounts, setEnableDiscounts] = useState(config.enableDiscounts !== false);
   const [enableAffiliateTracking, setEnableAffiliateTracking] = useState(config.enableAffiliateTracking !== false);
   const [enableCartSummary, setEnableCartSummary] = useState(config.enableCartSummary !== false);
@@ -127,9 +133,13 @@ export default function FormBuilderPage() {
   const handleSave = () => {
     setSaveFeedback(null);
     const payload = {
+      ...config,
       displayMode,
       buttonText,
+      submitButtonText,
       formTitle,
+      addToCartButtonText,
+      cartCheckoutButtonText,
       primaryColor,
       enableDiscounts,
       enableAffiliateTracking,
@@ -454,34 +464,67 @@ export default function FormBuilderPage() {
 
           {/* 5. Styling & Texts */}
           <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">5. نصوص وألوان النموذج (Texts & Colors)</Text>
-              <InlineStack gap="400">
-                <Box minWidth="300px">
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">5. نصوص وتسميات الأزرار والنموذج (Texts & Labels)</Text>
+              <Text as="p" tone="subdued">
+                تخصيص تسميات الأزرار وعناوين النموذج لتتناسب تماماً مع لغة وأسلوب متجرك وطرق الدفع المفعلة:
+              </Text>
+              <Grid>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="نص زر الطلب الرئيسي (Button Text)"
+                    label="نص زر الطلب في صفحة المنتج (Product Page Buy Button Text)"
                     value={buttonText}
                     onChange={setButtonText}
                     autoComplete="off"
+                    helpText="يظهر على زر الطلب السريع الرئيسي بصفحة المنتج (مثال: أطلب الآن / اشتري الآن)"
                   />
-                </Box>
-                <Box minWidth="300px">
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="عنوان النموذج (Form Title)"
+                    label="نص زر إكمال الطلب في النافذة (Modal Submit Button Text)"
+                    value={submitButtonText}
+                    onChange={setSubmitButtonText}
+                    autoComplete="off"
+                    helpText="يظهر على زر تأكيد الطلب النهائي أسفل النموذج (مثال: إكمال الدفع / تأكيد الطلب)"
+                  />
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                  <TextField
+                    label="عنوان نافذة الطلب (Form / Modal Title)"
                     value={formTitle}
                     onChange={setFormTitle}
                     autoComplete="off"
+                    helpText="يظهر كعنوان أعلى نافذة أو درج الطلب (مثال: معلومات الطلب / إتمام الشراء)"
                   />
-                </Box>
-                <Box minWidth="200px">
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                  <TextField
+                    label="نص زر إضافة للسلة (Add To Cart Button Text)"
+                    value={addToCartButtonText}
+                    onChange={setAddToCartButtonText}
+                    autoComplete="off"
+                    helpText="يظهر على زر الإضافة للسلة بجانب زر الطلب السريع (مثال: أضف إلى السلة)"
+                  />
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                  <TextField
+                    label="نص زر الدفع في السلة الجانبية (Cart Checkout Button Text)"
+                    value={cartCheckoutButtonText}
+                    onChange={setCartCheckoutButtonText}
+                    autoComplete="off"
+                    helpText="يظهر في السلة ودرج السلة Slide Cart Drawer (مثال: إتمام الطلب)"
+                  />
+                </Grid.Cell>
+                <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
                     label="لون الزر الرئيسي (Primary Color Hex)"
                     value={primaryColor}
                     onChange={setPrimaryColor}
                     autoComplete="off"
+                    helpText="كود لون الهوية الرئيسي للأزرار وعناصر التأكيد (مثال: #020a25)"
                   />
-                </Box>
-              </InlineStack>
+                </Grid.Cell>
+              </Grid>
             </BlockStack>
           </Card>
 
