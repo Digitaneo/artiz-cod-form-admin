@@ -33,7 +33,7 @@
       document.documentElement.classList.add("artiz-hijack-mode");
       if (document.body) document.body.classList.add("artiz-hijack-mode");
     }
-  } catch (_) {}
+  } catch (_) { }
 
   function formatMoney(amount) {
     const num = Number(amount || 0);
@@ -311,6 +311,11 @@
     return addr || city || "";
   }
 
+  function isModalOpen() {
+    const overlay = document.getElementById("artiz-modal-overlay");
+    return !!(overlay && overlay.classList.contains("artiz-active"));
+  }
+
   // 1. Initialize
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initArtizCOD);
@@ -356,7 +361,7 @@
           activeConfig = { ...activeConfig, ...remoteConfig };
           try {
             localStorage.setItem("artiz_button_mode", activeConfig.buttonMode || "replace");
-          } catch (_) {}
+          } catch (_) { }
           if (activeConfig.buttonMode === "hijack") {
             document.documentElement.classList.add("artiz-hijack-mode");
             if (document.body) document.body.classList.add("artiz-hijack-mode");
@@ -385,21 +390,35 @@
         console.warn("[Artiz COD] Using initial config:", e);
       });
 
-    // Universal DOM MutationObserver: Re-attaches buttons on variant change & Section Rendering API
+    // Universal DOM MutationObserver: Re-attaches triggers on Section Rendering API without self-looping
     if (window.MutationObserver) {
       let domTimeout = null;
-      const domObserver = new MutationObserver(() => {
+      const domObserver = new MutationObserver((mutations) => {
+        // Skip mutations that occur within Artiz's own DOM trees to prevent loops
+        const onlyArtiz = mutations.every(m => {
+          const t = m.target;
+          return t && (
+            t.closest?.("#artiz-modal-overlay, .artiz-modal-container, #artiz-inline-product-form, .artiz-dual-actions, #artiz-replacement-styles") ||
+            t.id === "artiz-modal-overlay" ||
+            t.id === "artiz-replacement-styles"
+          );
+        });
+        if (onlyArtiz) return;
+
         if (domTimeout) clearTimeout(domTimeout);
         domTimeout = setTimeout(() => {
           setupAllProductTriggers();
           setupCartPageTrigger();
-        }, 50);
+        }, 150);
       });
       domObserver.observe(document.body, { childList: true, subtree: true });
     }
 
     // Standard theme event listeners for cart changes
     const onCartChanged = async () => {
+      // Only refresh if modal is currently open or inline form exists!
+      if (!isModalOpen() && !document.getElementById("artiz-inline-product-form")) return;
+
       try {
         const cRes = await fetch("/cart.js?_t=" + Date.now());
         const cart = await cRes.json();
@@ -408,7 +427,7 @@
           orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
           renderOrderItemsList();
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     document.addEventListener("cart:updated", onCartChanged);
     document.addEventListener("cart:refresh", onCartChanged);
@@ -418,7 +437,7 @@
     let cachedMode = "replace";
     try {
       cachedMode = localStorage.getItem("artiz_button_mode") || "replace";
-    } catch (_) {}
+    } catch (_) { }
 
     return {
       displayMode: "popup_modal",
@@ -488,8 +507,6 @@
     // --- Mode 2: Native Button Hijack ---
     if (activeConfig.buttonMode === "hijack") {
       setupNativeButtonHijack(productForm);
-      updateProductPageItems(productForm);
-      watchVariantChanges(productForm);
       return;
     }
 
@@ -516,14 +533,14 @@
         if (addCartBtn) addCartBtn.remove();
         existingContainer.classList.add("artiz-single-action");
       }
-      updateProductPageItems(productForm);
+      updateProductButtonsAvailability(productForm);
       return;
     }
 
     // If an App Block (#artiz-cod-form-wrapper) is already present and visible in this product section, do not duplicate!
     const nearbyAppBlock = productForm.closest(".product, .product-info, [data-section-type='product'], main")?.querySelector("#artiz-cod-form-wrapper");
     if (nearbyAppBlock) {
-      updateProductPageItems(productForm);
+      updateProductButtonsAvailability(productForm);
       return;
     }
 
@@ -564,7 +581,7 @@
 
     buyNowBtn.addEventListener("click", function (e) {
       e.preventDefault();
-      handleSmartCheckout(productForm);
+      handleSmartCheckout(productForm, buyNowBtn);
     });
 
     container.appendChild(buyNowBtn);
@@ -576,13 +593,14 @@
       productForm.appendChild(container);
     }
 
-    updateProductPageItems(productForm);
+    updateProductButtonsAvailability(productForm);
     watchVariantChanges(productForm);
   }
 
   function setupNativeButtonHijack(productForm) {
     if (!productForm) return;
 
+    // Only intercept Buy Now / Dynamic Checkout buttons - leave native Add to Cart 100% untouched!
     const buyNowSelectors = [
       '[data-shopify="payment-button"] button',
       '.shopify-payment-button__button',
@@ -600,7 +618,7 @@
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
-          handleSmartCheckout(productForm);
+          handleSmartCheckout(productForm, btn);
         }, true);
       }
     });
@@ -657,9 +675,8 @@
       matchCustomerCascadingLocation();
     }
 
-    // Populate initial product into orderItems and observe variant changes
     if (productForm) {
-      updateProductPageItems(productForm);
+      syncInlineProductForm(productForm);
       watchVariantChanges(productForm);
     }
   }
@@ -669,7 +686,13 @@
     productForm._artizVariantWatched = true;
 
     const onVariantChange = () => {
-      setTimeout(() => updateProductPageItems(productForm), 60);
+      setTimeout(() => {
+        if (document.getElementById("artiz-inline-product-form")) {
+          syncInlineProductForm(productForm);
+        } else {
+          updateProductButtonsAvailability(productForm);
+        }
+      }, 60);
     };
 
     productForm.addEventListener("change", onVariantChange);
@@ -679,37 +702,49 @@
       }
     });
 
-    // Global listener for modern theme variant selectors (radios, selects, swatches, pills)
-    document.addEventListener("change", function (e) {
-      if (e.target && (
-        e.target.name === "id" ||
-        (e.target.name && e.target.name.startsWith("options[")) ||
-        e.target.closest("variant-radios, variant-selects, .variant-picker, .product-form")
-      )) {
-        onVariantChange();
-      }
-    });
+    if (!window._artizGlobalVariantWatched) {
+      window._artizGlobalVariantWatched = true;
 
-    // Theme custom events (e.g. Dawn variant:change)
-    document.addEventListener("variant:change", onVariantChange);
+      document.addEventListener("change", function (e) {
+        if (e.target && (
+          e.target.name === "id" ||
+          (e.target.name && e.target.name.startsWith("options[")) ||
+          e.target.closest("variant-radios, variant-selects, .variant-picker, .product-form")
+        )) {
+          const form = e.target.closest('form[action*="/cart/add"]') || document.querySelector('form[action*="/cart/add"]');
+          if (form) setTimeout(() => {
+            if (document.getElementById("artiz-inline-product-form")) {
+              syncInlineProductForm(form);
+            } else {
+              updateProductButtonsAvailability(form);
+            }
+          }, 60);
+        }
+      });
 
-    // Watch for URL variant changes (?variant=...)
-    window.addEventListener("popstate", onVariantChange);
-    if (!history._artizVariantPatched) {
-      history._artizVariantPatched = true;
-      const origPush = history.pushState;
-      history.pushState = function () {
-        origPush.apply(this, arguments);
-        onVariantChange();
-      };
-      const origReplace = history.replaceState;
-      history.replaceState = function () {
-        origReplace.apply(this, arguments);
-        onVariantChange();
-      };
+      document.addEventListener("variant:change", function (e) {
+        const form = e.target?.closest?.('form[action*="/cart/add"]') || document.querySelector('form[action*="/cart/add"]');
+        if (form) setTimeout(() => {
+          if (document.getElementById("artiz-inline-product-form")) {
+            syncInlineProductForm(form);
+          } else {
+            updateProductButtonsAvailability(form);
+          }
+        }, 60);
+      });
+
+      window.addEventListener("popstate", function () {
+        const form = document.querySelector('form[action*="/cart/add"]');
+        if (form) setTimeout(() => {
+          if (document.getElementById("artiz-inline-product-form")) {
+            syncInlineProductForm(form);
+          } else {
+            updateProductButtonsAvailability(form);
+          }
+        }, 60);
+      });
     }
 
-    // Observe hidden variant id attribute mutations
     const variantInput = productForm.querySelector('input[name="id"], select[name="id"]');
     if (variantInput && window.MutationObserver) {
       const observer = new MutationObserver(onVariantChange);
@@ -717,100 +752,89 @@
     }
   }
 
-  let showOtherCartItems = false;
-  window.artizToggleOtherCartItems = function () {
-    showOtherCartItems = !showOtherCartItems;
-    renderOrderItemsList();
-  };
+  async function getVariantDetails(productForm) {
+    if (!productForm) return { variantId: null, available: true, price: 0, compareAtPrice: 0, title: "", variantTitle: "", image: "" };
 
-  async function updateProductPageItems(productForm) {
-    if (!productForm) return;
     let variantId = null;
     try {
       const fd = new FormData(productForm);
       variantId = fd.get("id");
-    } catch (_) {}
+    } catch (_) { }
     if (!variantId) {
-      const variantInput = productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])') || productForm.querySelector('input[name="id"], select[name="id"]');
-      variantId = variantInput ? variantInput.value : null;
+      const variantInput = productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])')
+        || productForm.querySelector('input[name="id"], select[name="id"]');
+      if (variantInput) variantId = variantInput.value;
     }
     if (!variantId && productForm.id) {
       const extInput = document.querySelector(`input[name="id"][form="${productForm.id}"], select[name="id"][form="${productForm.id}"]`);
       if (extInput) variantId = extInput.value;
     }
     if (!variantId) {
-      const anyId = document.querySelector('input[name="id"], select[name="id"]');
-      if (anyId) variantId = anyId.value;
-    }
-    if (!variantId) {
       const urlParams = new URLSearchParams(window.location.search);
       variantId = urlParams.get("variant");
     }
-    const qtyInput = productForm.querySelector('input[name="quantity"]');
-    const quantity = qtyInput ? parseInt(qtyInput.value, 10) || 1 : 1;
+    if (!variantId) {
+      variantId = window.ShopifyAnalytics?.meta?.selectedVariantId || null;
+    }
 
-    let title = document.querySelector("h1")?.innerText?.trim() || "منتج المتجر";
-    let catalogPrice = 0;
-    let catalogComparePrice = 0;
-    let image = "";
+    // Check native theme button state first (Dawn and other themes disable button if out of stock)
+    const nativeAddBtn = productForm.querySelector('button[name="add"], buy-buttons button[type="submit"], input[name="add"]');
+    const isNativeDisabled = nativeAddBtn && (nativeAddBtn.disabled || nativeAddBtn.hasAttribute("disabled") || nativeAddBtn.classList.contains("disabled"));
+
+    let available = !isNativeDisabled;
+    let price = 0;
+    let compareAtPrice = 0;
+    let title = document.querySelector("h1")?.innerText?.trim() || "";
     let variantTitle = "";
-    let isAvailable = true;
+    let image = "";
 
-    try {
-      const pathname = window.location.pathname;
-      const productHandle = pathname.split("/products/")[1]?.split("/")[0]?.split("?")[0];
-      if (productHandle) {
+    const pathname = window.location.pathname;
+    const parts = pathname.split("/products/");
+    const productHandle = parts.length > 1 ? parts[1].split("/")[0].split("?")[0] : null;
+
+    if (productHandle) {
+      try {
         let pData = productDetailCache[productHandle];
         if (!pData) {
           const pRes = await fetch(`/products/${productHandle}.js`);
           pData = await pRes.json();
           productDetailCache[productHandle] = pData;
         }
-        title = pData.title;
-        image = pData.featured_image || "";
-        const variantObj = pData.variants?.find(v => String(v.id) === String(variantId)) || pData.variants?.[0];
-        if (variantObj) {
-          variantId = variantObj.id;
-          isAvailable = variantObj.available !== false;
-          catalogPrice = variantObj.price / 100;
-          catalogComparePrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : catalogPrice;
-          variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
-          if (variantObj.featured_image?.src) {
-            image = variantObj.featured_image.src;
+        if (pData) {
+          title = pData.title || title;
+          image = pData.featured_image || "";
+          let variantObj = null;
+          if (variantId) {
+            variantObj = pData.variants?.find(v => String(v.id) === String(variantId));
+          }
+          if (!variantObj && pData.variants?.length > 0) {
+            variantObj = pData.variants[0];
+          }
+          if (variantObj) {
+            variantId = variantObj.id;
+            available = isNativeDisabled ? false : (variantObj.available !== false);
+            price = variantObj.price / 100;
+            compareAtPrice = variantObj.compare_at_price ? (variantObj.compare_at_price / 100) : price;
+            variantTitle = variantObj.title !== "Default Title" ? variantObj.title : "";
+            if (variantObj.featured_image?.src) image = variantObj.featured_image.src;
           }
         }
-      }
-    } catch (e) {
-      console.warn("Could not fetch product details", e);
+      } catch (_) { }
     }
 
-    if (!variantId) return;
+    return { variantId, available, price, compareAtPrice, title, variantTitle, image };
+  }
 
-    // Inspect Active Cart Items to support smart multi-item checkout even when current variant is out of stock
-    let otherCartItems = [];
-    let matchingCartItem = null;
+  async function updateProductButtonsAvailability(productForm) {
+    if (!productForm || activeConfig.buttonMode === "hijack") return;
 
-    try {
-      const cRes = await fetch("/cart.js");
-      const cart = await cRes.json();
-      if (cart.currency) storeCurrency = cart.currency;
+    const addCartBtns = productForm.querySelectorAll(".artiz-secondary-btn, #artiz-product-add-cart-btn");
+    const buyNowBtns = productForm.querySelectorAll(".artiz-cod-trigger-btn:not(.artiz-cart-cod-btn), #artiz-direct-buy-btn");
+    if (addCartBtns.length === 0 && buyNowBtns.length === 0) return;
 
-      if (cart.items && cart.items.length > 0) {
-        matchingCartItem = cart.items.find(item => String(item.variant_id) === String(variantId));
-        otherCartItems = cart.items
-          .filter(item => String(item.variant_id) !== String(variantId))
-          .map(item => mapCartItemToOrderItem(item));
-      }
-    } catch (_) { }
+    const details = await getVariantDetails(productForm);
 
-    const hasOtherCartProducts = otherCartItems.length > 0;
-
-    // Update Storefront Dual Action Buttons according to inventory & cart status
-    const addCartBtns = document.querySelectorAll(".artiz-secondary-btn, #artiz-product-add-cart-btn");
-    const buyNowBtns = document.querySelectorAll(".artiz-cod-trigger-btn:not(.artiz-cart-cod-btn), #artiz-direct-buy-btn, #artiz-block-trigger-btn");
-
-    if (!isAvailable) {
-      // 1. Add to Cart: strictly disabled when variant is out of stock
+    if (!details.available) {
       addCartBtns.forEach(btn => {
         btn.disabled = true;
         btn.classList.add("artiz-btn-disabled");
@@ -818,9 +842,15 @@
         tSpan.textContent = "غير متوفر";
       });
 
-      // 2. Buy Now: if other products exist in cart, enable checkout for them; if cart is empty, disable button
+      let hasCartItems = false;
+      try {
+        const cRes = await fetch("/cart.js");
+        const cart = await cRes.json();
+        hasCartItems = cart.items && cart.items.length > 0;
+      } catch (_) { }
+
       buyNowBtns.forEach(btn => {
-        if (hasOtherCartProducts) {
+        if (hasCartItems) {
           btn.disabled = false;
           btn.classList.remove("artiz-btn-disabled");
           btn.classList.add("artiz-pulse");
@@ -835,7 +865,6 @@
         }
       });
     } else {
-      // In stock
       addCartBtns.forEach(btn => {
         btn.disabled = false;
         btn.classList.remove("artiz-btn-disabled");
@@ -851,116 +880,217 @@
         tSpan.textContent = activeConfig?.buttonText || "اطلب الآن";
       });
     }
+  }
 
-    // Build Current Product with full cart discount awareness and accurate stock status
-    let currentProduct;
-    if (matchingCartItem) {
-      const mapped = mapCartItemToOrderItem(matchingCartItem);
-      const effectiveOriginal = catalogComparePrice > mapped.price
-        ? catalogComparePrice
-        : (mapped.originalPrice > mapped.price ? mapped.originalPrice : catalogPrice);
+  async function syncInlineProductForm(productForm) {
+    if (!productForm) return;
+    const details = await getVariantDetails(productForm);
+    const qtyInput = productForm.querySelector('input[name="quantity"]');
+    const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
 
-      const hasAutoDiscount = mapped.unitDiscount > 0 || (catalogPrice > mapped.price);
-      const autoDiscountPercent = hasAutoDiscount && catalogPrice > 0
-        ? Math.round(((catalogPrice - mapped.price) / catalogPrice) * 100)
-        : (mapped.cartDiscountPercent || 0);
+    try {
+      const cRes = await fetch("/cart.js?_t=" + Date.now());
+      const cart = await cRes.json();
+      if (cart.currency) storeCurrency = cart.currency;
 
-      currentProduct = {
-        ...mapped,
-        isCurrentProduct: true,
-        catalogPrice,
-        catalogComparePrice,
-        originalPrice: effectiveOriginal,
-        autoDiscountPercent,
-        hasAutoDiscount,
-        image: mapped.image || image,
-        available: isAvailable
-      };
-    } else {
-      currentProduct = {
-        variantId,
-        title,
-        variantTitle,
-        price: catalogPrice,
-        catalogPrice,
-        catalogComparePrice,
-        originalPrice: catalogComparePrice > catalogPrice ? catalogComparePrice : catalogPrice,
-        unitDiscount: 0,
-        autoDiscountPercent: 0,
-        hasAutoDiscount: false,
-        image,
-        quantity,
-        isCurrentProduct: true,
-        available: isAvailable
-      };
+      if (cart.items && cart.items.length > 0) {
+        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      } else if (details.variantId) {
+        orderItems = [{
+          variantId: details.variantId,
+          title: details.title,
+          variantTitle: details.variantTitle,
+          price: details.price,
+          originalPrice: details.compareAtPrice > details.price ? details.compareAtPrice : details.price,
+          unitDiscount: 0,
+          cartDiscountPercent: 0,
+          image: details.image,
+          quantity: quantity,
+          available: details.available
+        }];
+      }
+      renderOrderItemsList();
+    } catch (_) { }
+  }
+
+  async function handleAddToCart(productForm, addCartBtn) {
+    if (!productForm) productForm = document.querySelector('form[action*="/cart/add"]');
+    if (!productForm) return;
+
+    const origHtml = addCartBtn ? addCartBtn.innerHTML : "";
+    if (addCartBtn) {
+      addCartBtn.disabled = true;
+      addCartBtn.classList.add("artiz-btn-loading");
+      addCartBtn.innerHTML = `
+        <span class="artiz-spinner-sm"></span>
+        <span>جاري الإضافة...</span>
+      `;
     }
 
-    orderItems = [currentProduct, ...otherCartItems];
-    renderOrderItemsList();
-  }
-
-  function handleSmartCheckout(productForm) {
-    handleDirectProductBuy(productForm);
-  }
-
-  function handleDirectProductBuy(productForm) {
-    const currentProduct = orderItems.find(i => i.isCurrentProduct);
-    const otherCartItems = orderItems.filter(i => !i.isCurrentProduct);
-
-    // If current variant is unavailable
-    if (currentProduct && currentProduct.available === false) {
-      if (otherCartItems.length > 0) {
-        orderItems = otherCartItems;
-        openArtizModal();
-        return;
-      } else {
-        alert("عذراً، هذا المنتج غير متوفر حالياً ولا توجد منتجات أخرى في سلتك.");
+    try {
+      const details = await getVariantDetails(productForm);
+      if (!details.available) {
+        alert("عذراً، هذا المنتج غير متوفر حالياً.");
+        if (addCartBtn) {
+          addCartBtn.innerHTML = origHtml;
+          addCartBtn.disabled = true;
+          addCartBtn.classList.remove("artiz-btn-loading");
+        }
         return;
       }
+
+      const qtyInput = productForm.querySelector('input[name="quantity"]');
+      const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
+
+      const formData = new FormData();
+      formData.append("id", details.variantId);
+      formData.append("quantity", quantity);
+
+      const res = await fetch("/cart/add.js", {
+        method: "POST",
+        body: formData,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      const addedData = await res.json();
+
+      if (res.ok) {
+        const cartRes = await fetch("/cart.js?_t=" + Date.now());
+        const cart = await cartRes.json();
+        if (cart.currency) storeCurrency = cart.currency;
+
+        const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
+        countBadges.forEach(b => { b.textContent = cart.item_count || 0; });
+
+        document.dispatchEvent(new CustomEvent("cart:updated", { detail: { cart, item: addedData } }));
+        document.dispatchEvent(new CustomEvent("cart:refresh"));
+
+        if (addCartBtn) {
+          addCartBtn.innerHTML = `
+            <span>✓ تمت الإضافة</span>
+          `;
+          setTimeout(() => {
+            addCartBtn.innerHTML = origHtml;
+            addCartBtn.disabled = false;
+            addCartBtn.classList.remove("artiz-btn-loading");
+          }, 1800);
+        }
+      } else {
+        alert(addedData.description || "عذراً، تعذر إضافة المنتج إلى السلة.");
+        if (addCartBtn) {
+          addCartBtn.innerHTML = origHtml;
+          addCartBtn.disabled = false;
+          addCartBtn.classList.remove("artiz-btn-loading");
+        }
+      }
+    } catch (err) {
+      console.error("[Artiz COD] Add to cart error:", err);
+      if (addCartBtn) {
+        addCartBtn.innerHTML = origHtml;
+        addCartBtn.disabled = false;
+        addCartBtn.classList.remove("artiz-btn-loading");
+      }
     }
-
-    if (orderItems.length === 0) {
-      alert("يرجى اختيار منتج لشرائه.");
-      return;
-    }
-
-    // Immediate instant modal opening (0ms delay)
-    openArtizModal();
-
-    // Background cart sync (non-blocking)
-    fetch("/cart.js?_t=" + Date.now())
-      .then(r => r.json())
-      .then(cart => {
-        if (cart) syncOrderItemsFromCart(cart);
-      })
-      .catch(() => {});
   }
 
-  function handleCartCheckout() {
-    // If orderItems is already loaded in memory, open modal immediately!
-    if (orderItems && orderItems.length > 0) {
-      openArtizModal();
+  async function handleSmartCheckout(productForm, triggerBtn) {
+    if (!productForm) {
+      productForm = document.querySelector('form[action*="/cart/add"]');
     }
 
-    fetch("/cart.js?_t=" + Date.now())
-      .then(r => r.json())
-      .then(cart => {
-        if (cart.currency) storeCurrency = cart.currency;
-        if (!cart.items || cart.items.length === 0) {
-          if (!orderItems || orderItems.length === 0) {
-            alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
-            return;
-          }
+    let origBtnContent = "";
+    if (triggerBtn) {
+      origBtnContent = triggerBtn.innerHTML;
+      triggerBtn.disabled = true;
+      triggerBtn.classList.add("artiz-btn-loading");
+      triggerBtn.innerHTML = `<span class="artiz-spinner-sm"></span> <span>جاري التحميل...</span>`;
+    }
+
+    try {
+      const details = await getVariantDetails(productForm);
+      const qtyInput = productForm?.querySelector('input[name="quantity"]');
+      const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
+
+      // If variant is unavailable
+      if (!details.available) {
+        const cRes = await fetch("/cart.js?_t=" + Date.now());
+        const cart = await cRes.json();
+        if (cart.items && cart.items.length > 0) {
+          orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+          openArtizModal();
         } else {
+          alert("عذراً، هذا المنتج غير متوفر حالياً ولا توجد منتجات أخرى في سلتك.");
+        }
+        if (triggerBtn) {
+          triggerBtn.innerHTML = origBtnContent;
+          triggerBtn.disabled = false;
+          triggerBtn.classList.remove("artiz-btn-loading");
+        }
+        return;
+      }
+
+      // Add to Shopify cart
+      if (details.variantId) {
+        const addData = new FormData();
+        addData.append("id", details.variantId);
+        addData.append("quantity", quantity);
+
+        await fetch("/cart/add.js", {
+          method: "POST",
+          body: addData,
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+      }
+
+      // Fetch the updated cart - Single Source of Truth!
+      const cartRes = await fetch("/cart.js?_t=" + Date.now());
+      const cart = await cartRes.json();
+      if (cart.currency) storeCurrency = cart.currency;
+
+      if (cart.items && cart.items.length > 0) {
+        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      }
+
+      const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
+      countBadges.forEach(b => { b.textContent = cart.item_count || 0; });
+
+      // Open the modal with authentic cart data
+      openArtizModal();
+
+    } catch (err) {
+      console.error("[Artiz COD] Error in smart checkout:", err);
+      try {
+        const cRes = await fetch("/cart.js?_t=" + Date.now());
+        const cart = await cRes.json();
+        if (cart.items && cart.items.length > 0) {
           orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
           openArtizModal();
         }
-      })
-      .catch(() => {
-        if (!orderItems || orderItems.length === 0) {
-          alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
-        }
-      });
+      } catch (_) { }
+    } finally {
+      if (triggerBtn) {
+        triggerBtn.innerHTML = origBtnContent;
+        triggerBtn.disabled = false;
+        triggerBtn.classList.remove("artiz-btn-loading");
+      }
+    }
+  }
+
+  async function handleCartCheckout() {
+    try {
+      const res = await fetch("/cart.js?_t=" + Date.now());
+      const cart = await res.json();
+      if (cart.currency) storeCurrency = cart.currency;
+
+      if (!cart.items || cart.items.length === 0) {
+        alert("سلة التسوق فارغة، يرجى إضافة منتجات أولاً.");
+        return;
+      }
+
+      orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      openArtizModal();
+    } catch (e) {
+      alert("تعذر قراءة بيانات السلة، يرجى المحاولة لاحقاً.");
+    }
   }
 
   // 3. Setup Cart Page & Drawer Triggers
@@ -1045,31 +1175,8 @@
 
   function syncOrderItemsFromCart(cart) {
     if (!cart || !cart.items) return;
-    let changed = false;
-
-    orderItems.forEach(item => {
-      const match = cart.items.find(ci => String(ci.variant_id) === String(item.variantId));
-      if (match) {
-        const mapped = mapCartItemToOrderItem(match);
-        if (item.price !== mapped.price || item.unitDiscount !== mapped.unitDiscount || item.quantity !== match.quantity) {
-          item.price = mapped.price;
-          item.unitDiscount = mapped.unitDiscount;
-          item.discountTitle = mapped.discountTitle;
-          item.cartDiscountPercent = mapped.cartDiscountPercent;
-          if (item.isCurrentProduct && item.catalogPrice) {
-            item.hasAutoDiscount = item.catalogPrice > mapped.price;
-            item.autoDiscountPercent = item.hasAutoDiscount
-              ? Math.round(((item.catalogPrice - mapped.price) / item.catalogPrice) * 100)
-              : 0;
-          }
-          changed = true;
-        }
-      }
-    });
-
-    if (changed) {
-      renderOrderItemsList();
-    }
+    orderItems = cart.items.map(ci => mapCartItemToOrderItem(ci));
+    renderOrderItemsList();
   }
 
   // 4. In-Modal / In-Form Quantity Management & Background Cart Sync
@@ -1078,11 +1185,12 @@
     const item = orderItems[index];
     item.quantity += delta;
     if (item.quantity <= 0) {
-      if (item.isCurrentProduct) {
+      if (orderItems.length > 1) {
+        orderItems.splice(index, 1);
+      } else {
         item.quantity = 1;
         return;
       }
-      orderItems.splice(index, 1);
     }
     renderOrderItemsList();
 
@@ -1166,7 +1274,7 @@
     return `
       <div class="artiz-modal-container" id="${isInline ? 'artiz-inline-box' : 'artiz-modal-box'}">
         <div class="artiz-modal-header">
-          <h3>${activeConfig.formTitle || "إتمام الطلب"}</h3>
+          <h3>${activeConfig.formTitle || "إتمام الطلب - الدفع عند الاستلام"}</h3>
           ${!isInline ? `<button type="button" class="artiz-close-btn" id="artiz-modal-close-btn">✕</button>` : ""}
         </div>
 
@@ -1525,7 +1633,7 @@
     if (orderItems.length === 0) {
       const productForm = document.querySelector('form[action*="/cart/add"]');
       if (productForm) {
-        await handleDirectProductBuy(productForm);
+        await handleSmartCheckout(productForm);
         return;
       }
     }
@@ -1540,6 +1648,10 @@
     const freeShippingContainer = document.getElementById("artiz-free-shipping-container");
     if (!container || !summaryLines) return;
 
+    // Do not run rendering work if modal is closed and we are not in inline mode
+    const isInline = document.getElementById("artiz-inline-product-form") !== null;
+    if (!isInline && !isModalOpen()) return;
+
     const activeCountryCode = detectActiveCountryCode();
     const submitBtn = document.getElementById("artiz-submit-order-btn");
 
@@ -1553,125 +1665,39 @@
 
     if (submitBtn) submitBtn.disabled = false;
 
-    // Render items with compare-at price & discount badges
-    const currentProduct = orderItems.find(i => i.isCurrentProduct);
-    const otherItems = orderItems.filter(i => !i.isCurrentProduct);
+    // Render all cart items cleanly with stepper and remove button
+    container.innerHTML = orderItems.map((item, idx) => {
+      const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+      const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
+      const autoPercent = item.cartDiscountPercent || (item.unitDiscount > 0 && item.originalPrice > 0 ? Math.round((item.unitDiscount / item.originalPrice) * 100) : 0);
 
-    if (currentProduct && otherItems.length > 0) {
-      const currentIdx = orderItems.indexOf(currentProduct);
-      const hasDiscount = currentProduct.originalPrice && currentProduct.originalPrice > currentProduct.price;
-      const discountPercent = hasDiscount ? Math.round((1 - (currentProduct.price / currentProduct.originalPrice)) * 100) : 0;
-      const autoDiscPercent = currentProduct.autoDiscountPercent || currentProduct.cartDiscountPercent || (currentProduct.unitDiscount > 0 && currentProduct.originalPrice > 0 ? Math.round((currentProduct.unitDiscount / currentProduct.originalPrice) * 100) : 0);
-      const otherTotal = otherItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-
-      container.innerHTML = `
+      return `
         <div class="artiz-item-card">
-          ${currentProduct.image ? `<img src="${currentProduct.image}" alt="${currentProduct.title}" class="artiz-item-thumb">` : ""}
+          ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
           <div class="artiz-item-info">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
-              <p class="artiz-item-title" style="margin:0;">${currentProduct.title}</p>
-              ${currentProduct.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
-              ${autoDiscPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoDiscPercent}%</span>` : ""}
+              <p class="artiz-item-title" style="margin:0;">${item.title}</p>
+              ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
+              ${autoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoPercent}%</span>` : ""}
             </div>
-            ${currentProduct.variantTitle ? `<p class="artiz-item-variant">${currentProduct.variantTitle}</p>` : ""}
+            ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
             <div class="artiz-price-stack">
-              <span class="artiz-item-price">${formatMoney(currentProduct.price * currentProduct.quantity)}</span>
+              <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
               ${hasDiscount ? `
-                <span class="artiz-item-compare-price">${formatMoney(currentProduct.originalPrice * currentProduct.quantity)}</span>
+                <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
                 <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
               ` : ""}
             </div>
-            <span class="artiz-current-product-tag">المنتج الحالي المعروض</span>
           </div>
           <div class="artiz-stepper">
-            <button type="button" onclick="artizUpdateQty(${currentIdx}, -1)">-</button>
-            <span>${currentProduct.quantity}</span>
-            <button type="button" onclick="artizUpdateQty(${currentIdx}, 1)">+</button>
+            <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
+            <span>${item.quantity}</span>
+            <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
           </div>
-        </div>
-
-        <div class="artiz-other-cart-section">
-          <button type="button" class="artiz-other-cart-toggle" onclick="window.artizToggleOtherCartItems()">
-            <div class="artiz-cart-toggle-right">
-              <span class="artiz-cart-badge-icon">🛒</span>
-              <strong class="artiz-cart-toggle-label">منتجات أخرى في سلتك (${otherItems.length})</strong>
-            </div>
-            <div class="artiz-cart-toggle-left">
-              <span class="artiz-other-cart-sum">${formatMoney(otherTotal)}</span>
-              <span class="artiz-other-cart-chevron">${showOtherCartItems ? '▲ إخفاء' : '▼ إظهار وتعديل'}</span>
-            </div>
-          </button>
-          
-          <div class="artiz-other-cart-list" style="${showOtherCartItems ? 'display:flex;' : 'display:none;'}">
-            ${otherItems.map(item => {
-        const idx = orderItems.indexOf(item);
-        const itemDiscount = item.originalPrice && item.originalPrice > item.price;
-        const itemDiscPercent = itemDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
-        const itemAutoPercent = item.cartDiscountPercent || itemDiscPercent;
-
-        return `
-                <div class="artiz-item-card artiz-sub-item-card">
-                  ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
-                  <div class="artiz-item-info">
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
-                      <p class="artiz-item-title" style="margin:0;">${item.title}</p>
-                      ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
-                      ${itemAutoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${itemAutoPercent}%</span>` : ""}
-                    </div>
-                    ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
-                    <div class="artiz-price-stack">
-                      <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
-                      ${itemDiscount ? `
-                        <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
-                      ` : ""}
-                    </div>
-                  </div>
-                  <div class="artiz-stepper">
-                    <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
-                    <span>${item.quantity}</span>
-                    <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
-                  </div>
-                  <button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف من السلة">✕</button>
-                </div>
-              `;
-      }).join("")}
-          </div>
+          ${orderItems.length > 1 ? `<button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>` : ""}
         </div>
       `;
-    } else {
-      container.innerHTML = orderItems.map((item, idx) => {
-        const hasDiscount = item.originalPrice && item.originalPrice > item.price;
-        const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
-        const autoPercent = item.cartDiscountPercent || (item.unitDiscount > 0 && item.originalPrice > 0 ? Math.round((item.unitDiscount / item.originalPrice) * 100) : 0);
-
-        return `
-          <div class="artiz-item-card">
-            ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
-            <div class="artiz-item-info">
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
-                <p class="artiz-item-title" style="margin:0;">${item.title}</p>
-                ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
-                ${autoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoPercent}%</span>` : ""}
-              </div>
-              ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
-              <div class="artiz-price-stack">
-                <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
-                ${hasDiscount ? `
-                  <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
-                  <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
-                ` : ""}
-              </div>
-            </div>
-            <div class="artiz-stepper">
-              <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
-              <span>${item.quantity}</span>
-              <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
-            </div>
-            ${orderItems.length > 1 ? `<button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>` : ""}
-          </div>
-        `;
-      }).join("");
-    }
+    }).join("");
 
     // Calculate Subtotals & Savings
     const subtotal = orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -1692,7 +1718,7 @@
       defaultPrice: 5000,
       freeShippingEnabled: true,
       freeShippingThreshold: 50000,
-      freeShippingText: "مجاناً (توصيل مجاني)",
+      freeShippingText: "مجاناً",
       allowMultipleMethods: false,
       defaultMethods: [
         { id: "standard", title: "توصيل سريع لكافة المحافظات", price: 5000 }
@@ -1709,7 +1735,7 @@
 
     if (isFreeShipping) {
       shippingCost = 0;
-      shippingTitle = shippingGen.freeShippingText || "مجاناً (توصيل مجاني)";
+      shippingTitle = "توصيل مجاني";
       currentCalculatedShipping = { cost: 0, title: shippingTitle, isFree: true };
 
       if (freeShippingContainer) {
@@ -1781,7 +1807,7 @@
             const rr = (r.region || "").trim().toLowerCase();
             const rc = (r.city || "").trim().toLowerCase();
             return (rr && (rr === regionVal || regionVal.includes(rr) || rr.includes(regionVal))) ||
-                   (rc && (rc === regionVal || regionVal.includes(rc) || rc.includes(regionVal)));
+              (rc && (rc === regionVal || regionVal.includes(rc) || rc.includes(regionVal)));
           });
         }
 
@@ -1865,10 +1891,10 @@
       <div class="artiz-summary-row artiz-shipping-row">
         <div class="artiz-shipping-label-group">
           <span>الشحن والتوصيل:</span>
-          <small class="artiz-shipping-title">${shippingTitle}</small>
+          <small class="artiz-shipping-title">${isFreeShipping ? "توصيل مجاني" : shippingTitle}</small>
         </div>
         <span class="artiz-shipping-cost ${shippingCost === 0 ? 'artiz-text-free' : ''}">
-          ${shippingCost === 0 ? (activeShippingConfig?.general?.freeShippingText || 'مجاناً') : formatMoney(shippingCost)}
+          ${shippingCost === 0 ? 'مجاناً' : formatMoney(shippingCost)}
         </span>
       </div>
 
