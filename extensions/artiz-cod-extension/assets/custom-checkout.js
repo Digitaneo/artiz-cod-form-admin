@@ -681,6 +681,9 @@
 
     const buyNowBtns = productForm.querySelectorAll(buyNowSelectors.join(", "));
     buyNowBtns.forEach(btn => {
+      // Guard: strictly ignore native Add to Cart buttons
+      if (btn.name === "add" || btn.getAttribute("name") === "add" || btn.classList.contains("product-form__submit")) return;
+
       if (!btn._artizHijacked) {
         btn._artizHijacked = true;
         btn.addEventListener("click", function (e) {
@@ -1289,11 +1292,12 @@
   function setupCartPageTrigger() {
     if (!activeConfig || !activeConfig.cartDrawerTrigger) return;
 
-    // Discover cart checkout buttons across forms, slide drawers, popups, and page elements
+    // Discover cart checkout buttons across cart forms and slide cart drawers ONLY
     const checkoutSelectors = [
-      'form[action*="/cart"] [name="checkout"]',
-      'form[action*="/cart"] input[type="submit"][value*="checkout" i]',
-      'form[action*="/cart"] button[type="submit"]',
+      'form[action="/cart"] [name="checkout"]',
+      'form[action^="/cart?"] [name="checkout"]',
+      'form[action="/cart"] input[type="submit"][value*="checkout" i]',
+      'form[action^="/cart?"] input[type="submit"][value*="checkout" i]',
       'cart-drawer [name="checkout"]',
       '.cart-drawer [name="checkout"]',
       '#CartDrawer-Checkout',
@@ -1306,8 +1310,10 @@
 
     const checkoutButtons = document.querySelectorAll(checkoutSelectors.join(", "));
     checkoutButtons.forEach(checkoutBtn => {
-      // Do not touch buttons that are inside our own Artiz modal or inline form
-      if (checkoutBtn.closest('#artiz-modal-overlay, #artiz-inline-product-form, .artiz-cod-modal')) return;
+      // Strictly ignore any button inside product forms, quick buy drawers, or our own modal
+      if (checkoutBtn.closest('form[action*="/cart/add"], quick-buy-drawer, [part="content"], [part="body"], .quick-add-modal, .product-form, #artiz-modal-overlay, #artiz-inline-product-form, .artiz-cod-modal')) return;
+      if (checkoutBtn.name === "add" || checkoutBtn.getAttribute("name") === "add") return;
+      if (checkoutBtn.classList.contains("product-form__submit") || checkoutBtn.classList.contains("artiz-secondary-btn")) return;
 
       if (activeConfig.buttonMode === "hijack") {
         if (!checkoutBtn._artizHijacked) {
