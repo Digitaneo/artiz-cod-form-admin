@@ -16,31 +16,74 @@
 }
 
 /* ============================================================
-   0. ZERO-FLICKER NATIVE BUTTON HIDING (Applied instantly on page load)
+   0. ZERO-FLICKER NATIVE BUTTON HIDING (Applied instantly when in Replace Mode)
    ============================================================ */
-body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons button[type="submit"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) form[action*="/cart/add"] buy-buttons [data-shopify="payment-button"],
-body:not(.artiz-hijack-mode) form[action*="/cart/add"] .shopify-payment-button,
-body:not(.artiz-hijack-mode) form[action*="/cart/add"] > button[type="submit"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons button[type="submit"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons [data-shopify="payment-button"],
-body:not(.artiz-hijack-mode) quick-buy-drawer .shopify-payment-button,
-body:not(.artiz-hijack-mode) quick-buy-drawer button[name="add"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] [data-shopify="payment-button"],
-body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] .shopify-payment-button,
-body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] [data-shopify="payment-button"],
-body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] .shopify-payment-button,
-body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
-body:not(.artiz-hijack-mode) cart-drawer form[action*="/cart"] button[name="checkout"],
-body:not(.artiz-hijack-mode) .cart-drawer form[action*="/cart"] button[name="checkout"],
-body:not(.artiz-hijack-mode) form.cart-form button[name="checkout"],
-body:not(.artiz-hijack-mode) .cart__checkout-button,
-body:not(.artiz-hijack-mode) .drawer__checkout {
+html.artiz-mode-replace body form[action*="/cart/add"] buy-buttons button[type="submit"]:not(.artiz-btn),
+html.artiz-mode-replace body form[action*="/cart/add"] buy-buttons [data-shopify="payment-button"],
+html.artiz-mode-replace body form[action*="/cart/add"] .shopify-payment-button,
+html.artiz-mode-replace body form[action*="/cart/add"] > button[type="submit"]:not(.artiz-btn),
+html.artiz-mode-replace body form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+html.artiz-mode-replace body quick-buy-drawer buy-buttons button[type="submit"]:not(.artiz-btn),
+html.artiz-mode-replace body quick-buy-drawer buy-buttons [data-shopify="payment-button"],
+html.artiz-mode-replace body quick-buy-drawer .shopify-payment-button,
+html.artiz-mode-replace body quick-buy-drawer button[name="add"]:not(.artiz-btn),
+html.artiz-mode-replace body [part="body"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+html.artiz-mode-replace body [part="body"] form[action*="/cart/add"] [data-shopify="payment-button"],
+html.artiz-mode-replace body [part="body"] form[action*="/cart/add"] .shopify-payment-button,
+html.artiz-mode-replace body [part="body"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+html.artiz-mode-replace body [part="content"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+html.artiz-mode-replace body [part="content"] form[action*="/cart/add"] [data-shopify="payment-button"],
+html.artiz-mode-replace body [part="content"] form[action*="/cart/add"] .shopify-payment-button,
+html.artiz-mode-replace body [part="content"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+html.artiz-mode-replace body cart-drawer form[action*="/cart"] button[name="checkout"],
+html.artiz-mode-replace body .cart-drawer form[action*="/cart"] button[name="checkout"],
+html.artiz-mode-replace body form.cart-form button[name="checkout"],
+html.artiz-mode-replace body .cart__checkout-button,
+html.artiz-mode-replace body .drawer__checkout,
+body.artiz-mode-replace form[action*="/cart/add"] buy-buttons button[type="submit"]:not(.artiz-btn),
+body.artiz-mode-replace form[action*="/cart/add"] buy-buttons [data-shopify="payment-button"],
+body.artiz-mode-replace form[action*="/cart/add"] .shopify-payment-button,
+body.artiz-mode-replace form[action*="/cart/add"] > button[type="submit"]:not(.artiz-btn),
+body.artiz-mode-replace form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+body.artiz-mode-replace quick-buy-drawer buy-buttons button[type="submit"]:not(.artiz-btn),
+body.artiz-mode-replace quick-buy-drawer buy-buttons [data-shopify="payment-button"],
+body.artiz-mode-replace quick-buy-drawer .shopify-payment-button,
+body.artiz-mode-replace quick-buy-drawer button[name="add"]:not(.artiz-btn),
+body.artiz-mode-replace [part="body"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+body.artiz-mode-replace [part="body"] form[action*="/cart/add"] [data-shopify="payment-button"],
+body.artiz-mode-replace [part="body"] form[action*="/cart/add"] .shopify-payment-button,
+body.artiz-mode-replace [part="body"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+body.artiz-mode-replace [part="content"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+body.artiz-mode-replace [part="content"] form[action*="/cart/add"] [data-shopify="payment-button"],
+body.artiz-mode-replace [part="content"] form[action*="/cart/add"] .shopify-payment-button,
+body.artiz-mode-replace [part="content"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+body.artiz-mode-replace cart-drawer form[action*="/cart"] button[name="checkout"],
+body.artiz-mode-replace .cart-drawer form[action*="/cart"] button[name="checkout"],
+body.artiz-mode-replace form.cart-form button[name="checkout"],
+body.artiz-mode-replace .cart__checkout-button,
+body.artiz-mode-replace .drawer__checkout {
   display: none !important;
+}
+
+/* Guard: in Hijack mode, app dual action buttons are NEVER visible */
+html.artiz-mode-hijack .artiz-dual-actions,
+body.artiz-mode-hijack .artiz-dual-actions,
+html.artiz-hijack-mode .artiz-dual-actions,
+body.artiz-hijack-mode .artiz-dual-actions {
+  display: none !important;
+}
+
+.artiz-submit-subtext {
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 /* ============================================================

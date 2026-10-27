@@ -26,12 +26,40 @@
   let selectedPaymentMethod = "cod";
   const productDetailCache = {};
 
+  function optimizeShopifyImageUrl(url, width = 120) {
+    if (!url || typeof url !== "string") return "";
+    try {
+      if (url.includes("width=")) {
+        return url.replace(/width=\d+/, `width=${width}`);
+      }
+      if (url.includes("?")) {
+        return `${url}&width=${width}`;
+      }
+      return `${url}?width=${width}`;
+    } catch (_) {
+      return url;
+    }
+  }
+
   // Instant zero-flash mode initialization from cache
   try {
-    const cachedMode = localStorage.getItem("artiz_button_mode");
-    if (cachedMode === "hijack") {
-      document.documentElement.classList.add("artiz-hijack-mode");
-      if (document.body) document.body.classList.add("artiz-hijack-mode");
+    let initialMode = "replace";
+    const raw = localStorage.getItem("artiz_form_config");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.buttonMode) initialMode = parsed.buttonMode;
+    }
+    if (!raw) {
+      const saved = localStorage.getItem("artiz_button_mode");
+      if (saved) initialMode = saved;
+    }
+
+    if (initialMode === "hijack") {
+      document.documentElement.classList.add("artiz-mode-hijack", "artiz-hijack-mode");
+      document.documentElement.classList.remove("artiz-mode-replace");
+    } else {
+      document.documentElement.classList.add("artiz-mode-replace");
+      document.documentElement.classList.remove("artiz-mode-hijack", "artiz-hijack-mode");
     }
   } catch (_) { }
 
@@ -361,12 +389,40 @@
             localStorage.setItem("artiz_form_config", JSON.stringify(remoteConfig));
             localStorage.setItem("artiz_button_mode", activeConfig.buttonMode || "replace");
           } catch (_) { }
-          if (activeConfig.buttonMode === "hijack") {
-            document.documentElement.classList.add("artiz-hijack-mode");
-            if (document.body) document.body.classList.add("artiz-hijack-mode");
+          const effMode = activeConfig.buttonMode === "hijack" ? "hijack" : "replace";
+          if (effMode === "hijack") {
+            document.documentElement.classList.add("artiz-mode-hijack", "artiz-hijack-mode");
+            document.documentElement.classList.remove("artiz-mode-replace");
+            if (document.body) {
+              document.body.classList.add("artiz-mode-hijack", "artiz-hijack-mode");
+              document.body.classList.remove("artiz-mode-replace");
+            }
+            // In hijack mode, ensure app-managed duplicate actions are cleaned up
+            document.querySelectorAll(".artiz-dual-actions").forEach(el => el.remove());
+            
+            // Sync button label to native buy buttons
+            const nativeBuyBtns = document.querySelectorAll(
+              '[data-shopify="payment-button"] button, .shopify-payment-button__button, shopify-buy-it-now-button button, .shopify-payment-button [role="button"], buy-buttons [data-shopify="payment-button"] button, button.shopify-payment-button__button--unbranded'
+            );
+            nativeBuyBtns.forEach(btn => {
+              if (btn.name === "add" || btn.getAttribute("name") === "add" || btn.classList.contains("product-form__submit")) return;
+              if (activeConfig.buttonText) {
+                const textNodes = Array.from(btn.childNodes).filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0);
+                if (textNodes.length > 0) {
+                  textNodes[0].textContent = activeConfig.buttonText;
+                } else {
+                  const textSpan = btn.querySelector('span:not([aria-hidden="true"])') || btn;
+                  if (textSpan) textSpan.textContent = activeConfig.buttonText;
+                }
+              }
+            });
           } else {
-            document.documentElement.classList.remove("artiz-hijack-mode");
-            if (document.body) document.body.classList.remove("artiz-hijack-mode");
+            document.documentElement.classList.add("artiz-mode-replace");
+            document.documentElement.classList.remove("artiz-mode-hijack", "artiz-hijack-mode");
+            if (document.body) {
+              document.body.classList.add("artiz-mode-replace");
+              document.body.classList.remove("artiz-mode-hijack", "artiz-hijack-mode");
+            }
           }
           applyColorVariables(activeConfig);
 
@@ -465,13 +521,14 @@
       showAddToCartButton: true,
       // Dedicated UI Text Identifiers
       buttonText: "أطلب الآن",
+      buttonSubtext: "🚚 نوصل طلباتك بسرعة وبموثوقية إلى باب بيتك",
       submitButtonText: "إكمال الدفع",
       formTitle: "معلومات الطلب",
       addToCartButtonText: "أضف إلى السلة",
       addingToCartText: "جاري الإضافة...",
       addedToCartText: "✓ تمت الإضافة",
       cartCheckoutButtonText: "إتمام الطلب",
-      submittingOrderText: "جاري تأكيد وتسجيل طلبك...",
+      submittingOrderText: "يرجى الإنتظار...",
       outOfStockText: "غير متوفر",
       checkoutCartOnlyText: "إتمام طلب السلة",
       emptyCartText: "السلة فارغة",
@@ -683,6 +740,17 @@
     buyNowBtns.forEach(btn => {
       // Guard: strictly ignore native Add to Cart buttons
       if (btn.name === "add" || btn.getAttribute("name") === "add" || btn.classList.contains("product-form__submit")) return;
+
+      if (activeConfig?.buttonText && !btn._artizTextUpdated) {
+        const textNodes = Array.from(btn.childNodes).filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0);
+        if (textNodes.length > 0) {
+          textNodes[0].textContent = activeConfig.buttonText;
+        } else {
+          const textSpan = btn.querySelector('span:not([aria-hidden="true"])') || btn;
+          if (textSpan) textSpan.textContent = activeConfig.buttonText;
+        }
+        btn._artizTextUpdated = true;
+      }
 
       if (!btn._artizHijacked) {
         btn._artizHijacked = true;
@@ -1240,7 +1308,7 @@
       origBtnContent = triggerBtn.innerHTML;
       triggerBtn.disabled = true;
       triggerBtn.classList.add("artiz-btn-loading");
-      triggerBtn.innerHTML = `<span class="artiz-spinner-sm"></span> <span>${activeConfig?.submittingOrderText || "جاري التحميل..."}</span>`;
+      triggerBtn.innerHTML = `<span class="artiz-spinner-sm"></span> <span>${activeConfig?.submittingOrderText || "يرجى الإنتظار..."}</span>`;
     }
 
     try {
@@ -1760,6 +1828,9 @@
             <span id="artiz-btn-spinner" class="artiz-spinner" style="display:none;"></span>
             <span id="artiz-btn-label">${getSubmitButtonLabel()}</span>
           </button>
+          <div class="artiz-submit-subtext">
+            ${activeConfig?.buttonSubtext || "🚚 نوصل طلباتك بسرعة وبموثوقية إلى باب بيتك"}
+          </div>
         </form>
       </div>
     `;
@@ -2051,7 +2122,7 @@
 
       return `
         <div class="artiz-item-card">
-          ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
+          ${item.image ? `<img src="${optimizeShopifyImageUrl(item.image, 120)}" alt="${item.title}" class="artiz-item-thumb" loading="lazy">` : ""}
           <div class="artiz-item-content">
             <div class="artiz-item-header">
               <div class="artiz-item-title-wrap">
@@ -2461,7 +2532,7 @@
 
     if (submitBtn) submitBtn.disabled = true;
     if (spinner) spinner.style.display = "inline-block";
-    if (label) label.textContent = activeConfig?.submittingOrderText || "جاري تأكيد وتسجيل طلبك...";
+    if (label) label.textContent = activeConfig?.submittingOrderText || "يرجى الإنتظار...";
 
     try {
       const affiliateData = getAffiliateTrackingData();
