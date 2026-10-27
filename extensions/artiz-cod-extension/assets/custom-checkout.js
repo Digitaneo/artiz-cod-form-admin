@@ -828,29 +828,54 @@
     if (!productForm) return { variantId: null, available: true, price: 0, compareAtPrice: 0, title: "", variantTitle: "", image: "" };
 
     const parentContainer = productForm.closest('quick-buy-drawer, [part="content"], [part="body"], modal-dialog, .drawer, .product-card, .card-wrapper, .product, [data-section-type="product"]');
+    const searchScope = parentContainer || productForm;
 
     let variantId = null;
-    try {
-      const fd = new FormData(productForm);
-      variantId = fd.get("id");
-    } catch (_) { }
+
+    // 1. Check checked radio or active select input specifically for variant id
+    const checkedIdInput = searchScope.querySelector('input[name="id"]:checked, select[name="id"] option:checked');
+    if (checkedIdInput && checkedIdInput.value) {
+      variantId = checkedIdInput.value;
+    }
+
+    // 2. Check direct select element value
     if (!variantId) {
-      const variantInput = productForm.querySelector('input[name="id"]:checked, select[name="id"] option:checked')
-        || productForm.querySelector('input[name="id"]:not([disabled]), select[name="id"]:not([disabled])')
-        || productForm.querySelector('input[name="id"], select[name="id"]');
-      if (variantInput) variantId = variantInput.value;
+      const selectId = searchScope.querySelector('select[name="id"]');
+      if (selectId && selectId.value) {
+        variantId = selectId.value;
+      }
     }
+
+    // 3. Check form attribute linked inputs
     if (!variantId && productForm.id) {
-      const extInput = document.querySelector(`input[name="id"][form="${productForm.id}"]:checked, select[name="id"][form="${productForm.id}"] option:checked, input[name="id"][form="${productForm.id}"], select[name="id"][form="${productForm.id}"]`);
-      if (extInput) variantId = extInput.value;
+      const extChecked = document.querySelector(`input[name="id"][form="${productForm.id}"]:checked, select[name="id"][form="${productForm.id}"] option:checked`);
+      if (extChecked && extChecked.value) {
+        variantId = extChecked.value;
+      } else {
+        const extSelect = document.querySelector(`select[name="id"][form="${productForm.id}"]`);
+        if (extSelect && extSelect.value) variantId = extSelect.value;
+      }
     }
-    if (!variantId && parentContainer) {
-      const cInput = parentContainer.querySelector('input[name="id"]:checked, select[name="id"] option:checked, input[name="id"], select[name="id"]');
-      if (cInput) variantId = cInput.value;
-    }
+
+    // 4. Check URL parameter ?variant= (standard on Shopify product pages when switching variants)
     if (!variantId) {
       const urlParams = new URLSearchParams(window.location.search);
-      variantId = urlParams.get("variant");
+      const urlVar = urlParams.get("variant");
+      if (urlVar) variantId = urlVar;
+    }
+
+    // 5. Check FormData / hidden input
+    if (!variantId) {
+      try {
+        const fd = new FormData(productForm);
+        const fdVal = fd.get("id");
+        if (fdVal) variantId = fdVal;
+      } catch (_) { }
+    }
+    if (!variantId) {
+      const fallbackInput = searchScope.querySelector('input[name="id"]:not([disabled])')
+        || searchScope.querySelector('input[name="id"]');
+      if (fallbackInput && fallbackInput.value) variantId = fallbackInput.value;
     }
     if (!variantId) {
       variantId = window.ShopifyAnalytics?.meta?.selectedVariantId || null;
@@ -908,13 +933,39 @@
         if (pData) {
           title = pData.title || title;
           image = pData.featured_image || "";
+
           let variantObj = null;
+
+          // Check if variantId directly matches any variant in product JSON
           if (variantId) {
             variantObj = pData.variants?.find(v => String(v.id) === String(variantId));
           }
+
+          // Dynamic Swatch / Option detection: Match currently selected radio/select options (Color, Size, etc.)
+          const checkedOptionEls = Array.from(searchScope.querySelectorAll(
+            'input[type="radio"]:checked, select:not([name="id"]), input[type="radio"][data-option-value]:checked'
+          ));
+          const activeOptionValues = checkedOptionEls
+            .map(el => (el.value || el.getAttribute("data-option-value") || "").trim().toLowerCase())
+            .filter(v => v && v !== "id" && !v.includes("submit"));
+
+          if (activeOptionValues.length > 0 && pData.variants && pData.variants.length > 1) {
+            const matchedByOptions = pData.variants.find(v => {
+              const vOpts = [v.option1, v.option2, v.option3]
+                .filter(Boolean)
+                .map(o => String(o).trim().toLowerCase());
+              return activeOptionValues.every(val => vOpts.includes(val));
+            });
+            if (matchedByOptions) {
+              variantObj = matchedByOptions;
+              variantId = matchedByOptions.id;
+            }
+          }
+
           if (!variantObj && pData.variants?.length > 0) {
             variantObj = pData.variants[0];
           }
+
           if (variantObj) {
             variantId = variantObj.id;
             available = variantObj.available !== false;
