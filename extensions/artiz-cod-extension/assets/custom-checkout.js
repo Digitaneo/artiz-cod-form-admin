@@ -2552,21 +2552,26 @@
       }
     }
 
-    // 2. Cookies (BixGrow, GoAffPro, Uppromote, etc.)
+    // 2. Cookies (BixGrow, GoAffPro, UpPromote, and any affiliate/marketing cookies)
     try {
       const cookies = document.cookie.split(";");
       cookies.forEach(c => {
         const parts = c.trim().split("=");
-        const k = parts[0];
+        const k = parts[0]?.trim();
         const v = parts.slice(1).join("=");
         if (k && v) {
+          const kLower = k.toLowerCase();
           if (
             k.startsWith("_bg_") ||
             k.startsWith("bg_") ||
             knownKeys.includes(k) ||
-            k.includes("affiliate") ||
-            k.includes("bixgrow") ||
-            k.includes("goaffpro")
+            kLower.includes("aff") ||
+            kLower.includes("partner") ||
+            kLower.includes("referral") ||
+            kLower.includes("uppromote") ||
+            kLower.includes("bixgrow") ||
+            kLower.includes("goaffpro") ||
+            kLower.includes("track")
           ) {
             affiliate[k] = decodeURIComponent(v);
           }
@@ -2574,23 +2579,49 @@
       });
     } catch (_) {}
 
-    // 3. LocalStorage & SessionStorage
+    // 3. LocalStorage & SessionStorage (Universal marketing & affiliate tags)
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k.startsWith("_bg_") || k.startsWith("bg_") || k.includes("bixgrow") || k.includes("goaffpro"))) {
-          const val = localStorage.getItem(k);
-          if (val && typeof val === "string") {
-            affiliate[k] = val;
+        if (k) {
+          const kLower = k.toLowerCase();
+          if (
+            k.startsWith("_bg_") ||
+            k.startsWith("bg_") ||
+            knownKeys.includes(k) ||
+            kLower.includes("aff") ||
+            kLower.includes("partner") ||
+            kLower.includes("referral") ||
+            kLower.includes("uppromote") ||
+            kLower.includes("bixgrow") ||
+            kLower.includes("goaffpro")
+          ) {
+            const val = localStorage.getItem(k);
+            if (val && typeof val === "string") {
+              affiliate[k] = val;
+            }
           }
         }
       }
       for (let i = 0; i < sessionStorage.length; i++) {
         const k = sessionStorage.key(i);
-        if (k && (k.startsWith("_bg_") || k.startsWith("bg_") || k.includes("bixgrow") || k.includes("goaffpro"))) {
-          const val = sessionStorage.getItem(k);
-          if (val && typeof val === "string") {
-            affiliate[k] = val;
+        if (k) {
+          const kLower = k.toLowerCase();
+          if (
+            k.startsWith("_bg_") ||
+            k.startsWith("bg_") ||
+            knownKeys.includes(k) ||
+            kLower.includes("aff") ||
+            kLower.includes("partner") ||
+            kLower.includes("referral") ||
+            kLower.includes("uppromote") ||
+            kLower.includes("bixgrow") ||
+            kLower.includes("goaffpro")
+          ) {
+            const val = sessionStorage.getItem(k);
+            if (val && typeof val === "string") {
+              affiliate[k] = val;
+            }
           }
         }
       }
