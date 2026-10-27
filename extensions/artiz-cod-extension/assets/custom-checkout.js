@@ -696,6 +696,46 @@
     });
   }
 
+  // Universal delegated capture listener: Guarantees dynamic checkout / buy-now buttons inside quick-buy drawers
+  // or re-rendered DOM components are intercepted reliably on click without timing issues
+  if (!window._artizGlobalBuyNowHijacked) {
+    window._artizGlobalBuyNowHijacked = true;
+
+    document.addEventListener("click", function (e) {
+      if (activeConfig?.buttonMode !== "hijack") return;
+
+      const target = e.target;
+      if (!target) return;
+
+      const buyNowBtn = target.closest?.(
+        '[data-shopify="payment-button"] button, ' +
+        '.shopify-payment-button__button, ' +
+        'shopify-buy-it-now-button button, ' +
+        '.shopify-payment-button [role="button"], ' +
+        'buy-buttons [data-shopify="payment-button"] button, ' +
+        'button.shopify-payment-button__button--unbranded'
+      );
+
+      if (!buyNowBtn) return;
+
+      // Strictly ignore native Add to Cart buttons
+      if (buyNowBtn.name === "add" || buyNowBtn.getAttribute("name") === "add" || buyNowBtn.classList.contains("product-form__submit")) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      const form = buyNowBtn.closest('form[action*="/cart/add"]')
+        || (buyNowBtn.getAttribute("form") ? document.getElementById(buyNowBtn.getAttribute("form")) : null)
+        || buyNowBtn.closest('quick-buy-drawer, [part="content"], [part="body"]')?.querySelector('form[action*="/cart/add"]')
+        || document.querySelector('form[action*="/cart/add"]');
+
+      handleSmartCheckout(form, buyNowBtn);
+    }, true);
+  }
+
   function setupInlineProductForm(productForm) {
     if (document.getElementById("artiz-inline-product-form")) return;
 
@@ -824,59 +864,81 @@
     }
   }
 
-  async function getVariantDetails(productForm) {
-    if (!productForm) return { variantId: null, available: true, price: 0, compareAtPrice: 0, title: "", variantTitle: "", image: "" };
+  async function getVariantDetails(productForm, triggerBtn) {
+    if (!productForm && triggerBtn) {
+      productForm = triggerBtn.closest('form[action*="/cart/add"]')
+        || (triggerBtn.getAttribute("form") ? document.getElementById(triggerBtn.getAttribute("form")) : null)
+        || triggerBtn.closest('quick-buy-drawer, [part="content"], [part="body"]')?.querySelector('form[action*="/cart/add"]');
+    }
+    if (!productForm) {
+      productForm = document.querySelector('form[action*="/cart/add"]');
+    }
 
-    const parentContainer = productForm.closest('quick-buy-drawer, [part="content"], [part="body"], modal-dialog, .drawer, .product-card, .card-wrapper, .product, [data-section-type="product"]');
-    const searchScope = parentContainer || productForm;
+    const parentContainer = triggerBtn?.closest('quick-buy-drawer, [part="content"], [part="body"], product-rerender, modal-dialog, .drawer, .product-card, .card-wrapper, .product, [data-section-type="product"], main')
+      || productForm?.closest('quick-buy-drawer, [part="content"], [part="body"], product-rerender, modal-dialog, .drawer, .product-card, .card-wrapper, .product, [data-section-type="product"], main');
+    const searchScope = parentContainer || productForm || document;
 
     let variantId = null;
+    let variantObj = null;
 
-    // 1. Check checked radio or active select input specifically for variant id
-    const checkedIdInput = searchScope.querySelector('input[name="id"]:checked, select[name="id"] option:checked');
-    if (checkedIdInput && checkedIdInput.value) {
-      variantId = checkedIdInput.value;
+    // 1. Check triggerBtn directly (data-variant-id, data-variant, value)
+    if (triggerBtn) {
+      const btnVar = triggerBtn.getAttribute("data-variant-id") || triggerBtn.getAttribute("data-variant") || (triggerBtn.name === "id" ? triggerBtn.value : null);
+      if (btnVar) variantId = btnVar;
     }
 
-    // 2. Check direct select element value
-    if (!variantId) {
-      const selectId = searchScope.querySelector('select[name="id"]');
-      if (selectId && selectId.value) {
-        variantId = selectId.value;
+    // 2. Check Impact theme / standard Shopify <variant-picker> and <script data-variant>
+    let vp = searchScope.querySelector('variant-picker');
+    if (!vp && productForm?.id) {
+      vp = document.querySelector(`variant-picker[form-id="${productForm.id}"]`);
+    }
+    if (vp) {
+      const vpScript = vp.querySelector('script[data-variant], [data-variant]');
+      if (vpScript && vpScript.textContent.trim()) {
+        try {
+          const vData = JSON.parse(vpScript.textContent);
+          if (vData && vData.id) {
+            variantId = String(vData.id);
+            variantObj = vData;
+          }
+        } catch (_) { }
       }
     }
 
-    // 3. Check form attribute linked inputs
-    if (!variantId && productForm.id) {
-      const extChecked = document.querySelector(`input[name="id"][form="${productForm.id}"]:checked, select[name="id"][form="${productForm.id}"] option:checked`);
-      if (extChecked && extChecked.value) {
-        variantId = extChecked.value;
-      } else {
-        const extSelect = document.querySelector(`select[name="id"][form="${productForm.id}"]`);
-        if (extSelect && extSelect.value) variantId = extSelect.value;
+    // 3. Check form's input[name="id"] / select[name="id"] (even if disabled)
+    if (!variantId && productForm) {
+      const directId = productForm.querySelector('input[name="id"]:checked, select[name="id"] option:checked, select[name="id"]')
+        || productForm.querySelector('input[name="id"]');
+      if (directId && directId.value) variantId = directId.value;
+    }
+    if (!variantId && productForm?.id) {
+      const extId = document.querySelector(`input[name="id"][form="${productForm.id}"]:checked, select[name="id"][form="${productForm.id}"] option:checked, select[name="id"][form="${productForm.id}"], input[name="id"][form="${productForm.id}"]`);
+      if (extId && extId.value) variantId = extId.value;
+    }
+
+    // 4. Check searchScope for input[name="id"]
+    if (!variantId) {
+      const scopeId = searchScope.querySelector('input[name="id"]:checked, select[name="id"] option:checked, select[name="id"], input[name="id"]');
+      if (scopeId && scopeId.value) variantId = scopeId.value;
+    }
+
+    // 5. Check quick-buy-drawer handle attribute with ?variant=
+    if (!variantId && searchScope) {
+      const drawerHandle = searchScope.getAttribute?.("handle") || searchScope.closest?.("quick-buy-drawer")?.getAttribute?.("handle");
+      if (drawerHandle && drawerHandle.includes("variant=")) {
+        const m = drawerHandle.match(/variant=([0-9]+)/);
+        if (m && m[1]) variantId = m[1];
       }
     }
 
-    // 4. Check URL parameter ?variant= (standard on Shopify product pages when switching variants)
-    if (!variantId) {
+    // 6. Check URL parameter ?variant= (only if on main product page, NOT inside a quick buy drawer)
+    if (!variantId && !searchScope.closest?.('quick-buy-drawer, [part="content"]')) {
       const urlParams = new URLSearchParams(window.location.search);
       const urlVar = urlParams.get("variant");
       if (urlVar) variantId = urlVar;
     }
 
-    // 5. Check FormData / hidden input
-    if (!variantId) {
-      try {
-        const fd = new FormData(productForm);
-        const fdVal = fd.get("id");
-        if (fdVal) variantId = fdVal;
-      } catch (_) { }
-    }
-    if (!variantId) {
-      const fallbackInput = searchScope.querySelector('input[name="id"]:not([disabled])')
-        || searchScope.querySelector('input[name="id"]');
-      if (fallbackInput && fallbackInput.value) variantId = fallbackInput.value;
-    }
+    // 7. Fallback to ShopifyAnalytics if available
     if (!variantId) {
       variantId = window.ShopifyAnalytics?.meta?.selectedVariantId || null;
     }
@@ -897,21 +959,30 @@
 
     // Determine product handle across standard pages and quick buy drawers
     let productHandle = null;
-    const pathname = window.location.pathname;
-    const parts = pathname.split("/products/");
-    if (parts.length > 1) {
-      productHandle = parts[1].split("/")[0].split("?")[0];
+    if (searchScope) {
+      const handleAttr = searchScope.getAttribute?.("handle")
+        || searchScope.getAttribute?.("data-product-handle")
+        || searchScope.getAttribute?.("data-handle")
+        || searchScope.querySelector?.("variant-picker")?.getAttribute?.("handle");
+      if (handleAttr) productHandle = handleAttr.split("?")[0];
     }
     if (!productHandle && parentContainer) {
-      const handleAttr = parentContainer.getAttribute("data-product-handle") || parentContainer.getAttribute("data-handle");
+      const handleAttr = parentContainer.getAttribute?.("data-product-handle") || parentContainer.getAttribute?.("data-handle") || parentContainer.getAttribute?.("handle");
       if (handleAttr) {
-        productHandle = handleAttr;
+        productHandle = handleAttr.split("?")[0];
       } else {
-        const productLink = parentContainer.querySelector('a[href*="/products/"]');
+        const productLink = parentContainer.querySelector?.('a[href*="/products/"]');
         if (productLink) {
           const lParts = productLink.getAttribute("href").split("/products/");
           if (lParts.length > 1) productHandle = lParts[1].split("/")[0].split("?")[0];
         }
+      }
+    }
+    if (!productHandle) {
+      const pathname = window.location.pathname;
+      const parts = pathname.split("/products/");
+      if (parts.length > 1) {
+        productHandle = parts[1].split("/")[0].split("?")[0];
       }
     }
     if (!productHandle && productForm) {
@@ -934,36 +1005,51 @@
           title = pData.title || title;
           image = pData.featured_image || "";
 
-          let variantObj = null;
-
           // Check if variantId directly matches any variant in product JSON
-          if (variantId) {
+          if (variantId && !variantObj) {
             variantObj = pData.variants?.find(v => String(v.id) === String(variantId));
           }
 
           // Dynamic Swatch / Option detection: Match currently selected radio/select options (Color, Size, etc.)
-          const checkedOptionEls = Array.from(searchScope.querySelectorAll(
-            'input[type="radio"]:checked, select:not([name="id"]), input[type="radio"][data-option-value]:checked'
-          ));
-          const activeOptionValues = checkedOptionEls
-            .map(el => (el.value || el.getAttribute("data-option-value") || "").trim().toLowerCase())
-            .filter(v => v && v !== "id" && !v.includes("submit"));
+          if (!variantObj) {
+            const checkedOptionEls = Array.from(searchScope.querySelectorAll(
+              'input[data-option-position]:checked, input[type="radio"][name*="option"]:checked, input[type="radio"]:checked, select:not([name="id"])'
+            ));
 
-          if (activeOptionValues.length > 0 && pData.variants && pData.variants.length > 1) {
-            const matchedByOptions = pData.variants.find(v => {
-              const vOpts = [v.option1, v.option2, v.option3]
-                .filter(Boolean)
-                .map(o => String(o).trim().toLowerCase());
-              return activeOptionValues.every(val => vOpts.includes(val));
-            });
-            if (matchedByOptions) {
-              variantObj = matchedByOptions;
-              variantId = matchedByOptions.id;
+            const activeOptionValues = checkedOptionEls.map(el => {
+              let val = el.getAttribute("data-option-value");
+              if (!val && el.id) {
+                const lbl = searchScope.querySelector(`label[for="${el.id}"]`);
+                if (lbl) val = lbl.textContent.trim();
+              }
+              if (!val) {
+                const optInfo = el.closest('fieldset, .variant-picker__option')?.querySelector('.variant-picker__option-info span');
+                if (optInfo) val = optInfo.textContent.trim();
+              }
+              if (!val && el.value && isNaN(Number(el.value))) {
+                val = el.value.trim();
+              }
+              return (val || "").trim().toLowerCase();
+            }).filter(v => v && v !== "id" && !v.includes("submit"));
+
+            if (activeOptionValues.length > 0 && pData.variants && pData.variants.length > 1) {
+              const matchedByOptions = pData.variants.find(v => {
+                const vOpts = [v.option1, v.option2, v.option3]
+                  .filter(Boolean)
+                  .map(o => String(o).trim().toLowerCase());
+                return activeOptionValues.some(val => vOpts.includes(val)) || activeOptionValues.every(val => vOpts.includes(val));
+              });
+              if (matchedByOptions) {
+                variantObj = matchedByOptions;
+                variantId = matchedByOptions.id;
+              }
             }
           }
 
-          if (!variantObj && pData.variants?.length > 0) {
+          // Fallback to variant 0 ONLY if no variantId AND no variantObj could be found!
+          if (!variantObj && !variantId && pData.variants?.length > 0) {
             variantObj = pData.variants[0];
+            variantId = variantObj.id;
           }
 
           if (variantObj) {
@@ -1084,7 +1170,7 @@
     }
 
     try {
-      const details = await getVariantDetails(productForm);
+      const details = await getVariantDetails(productForm, addCartBtn);
       if (!details.available) {
         alert("عذراً، هذا المنتج غير متوفر حالياً.");
         if (addCartBtn) {
@@ -1158,7 +1244,7 @@
     }
 
     try {
-      const details = await getVariantDetails(productForm);
+      const details = await getVariantDetails(productForm, triggerBtn);
       const qtyInput = productForm?.querySelector('input[name="quantity"]');
       const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
 
