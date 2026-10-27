@@ -1220,6 +1220,20 @@
       if (cart.items && cart.items.length > 0) {
         orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
       } else if (details.variantId) {
+        const fallbackProperties = {};
+        if (productForm) {
+          const propInputs = productForm.querySelectorAll('[name^="properties["]');
+          propInputs.forEach(input => {
+            const m = input.name.match(/properties\[(.*?)\]/);
+            if (m && m[1] && input.value) {
+              fallbackProperties[m[1]] = input.value;
+            }
+          });
+        }
+        const affData = getAffiliateTrackingData();
+        if (affData._bg_aff && !fallbackProperties._bg_aff) fallbackProperties._bg_aff = affData._bg_aff;
+        if (affData._bg_click_id && !fallbackProperties._bg_click_id) fallbackProperties._bg_click_id = affData._bg_click_id;
+
         orderItems = [{
           variantId: details.variantId,
           title: details.title,
@@ -1230,7 +1244,8 @@
           cartDiscountPercent: 0,
           image: details.image,
           quantity: quantity,
-          available: details.available
+          available: details.available,
+          properties: fallbackProperties
         }];
       }
       renderOrderItemsList();
@@ -2762,15 +2777,25 @@
           address: cleanAddress, // Pure street address without duplicating city
           note
         },
-        items: orderItems.map(item => ({
-          variantId: item.variantId,
-          quantity: item.quantity,
-          price: item.price, // Exact discounted price!
-          originalPrice: item.originalPrice,
-          unitDiscount: item.unitDiscount || 0,
-          discountTitle: item.discountTitle || "",
-          properties: item.properties || {}
-        })),
+        items: orderItems.map(item => {
+          const itemProps = { ...(item.properties || {}) };
+          if (affiliateData && typeof affiliateData === "object") {
+            for (const [k, v] of Object.entries(affiliateData)) {
+              if (v && !itemProps[k]) {
+                itemProps[k] = String(v);
+              }
+            }
+          }
+          return {
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price, // Exact discounted price!
+            originalPrice: item.originalPrice,
+            unitDiscount: item.unitDiscount || 0,
+            discountTitle: item.discountTitle || "",
+            properties: itemProps
+          };
+        }),
         shippingPrice: currentCalculatedShipping.cost,
         shippingTitle: currentCalculatedShipping.title,
         discountCode: appliedDiscount?.code || "",
