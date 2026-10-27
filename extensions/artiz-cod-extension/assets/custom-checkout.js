@@ -61,6 +61,14 @@
       document.documentElement.classList.add("artiz-mode-replace");
       document.documentElement.classList.remove("artiz-mode-hijack", "artiz-hijack-mode");
     }
+
+    const rawPay = localStorage.getItem("artiz_payment_config");
+    if (rawPay) {
+      activePaymentConfig = JSON.parse(rawPay);
+      if (activePaymentConfig?.defaultMethod) {
+        selectedPaymentMethod = activePaymentConfig.defaultMethod;
+      }
+    }
   } catch (_) { }
 
   function formatMoney(amount) {
@@ -399,7 +407,7 @@
             }
             // In hijack mode, ensure app-managed duplicate actions are cleaned up
             document.querySelectorAll(".artiz-dual-actions").forEach(el => el.remove());
-            
+
             // Sync button label to native buy buttons
             const nativeBuyBtns = document.querySelectorAll(
               '[data-shopify="payment-button"] button, .shopify-payment-button__button, shopify-buy-it-now-button button, .shopify-payment-button [role="button"], buy-buttons [data-shopify="payment-button"] button, button.shopify-payment-button__button--unbranded'
@@ -443,9 +451,15 @@
         }
         activeShippingConfig = json.data?.shippingConfig || null;
         activePaymentConfig = json.data?.paymentConfig || null;
+        if (activePaymentConfig) {
+          try {
+            localStorage.setItem("artiz_payment_config", JSON.stringify(activePaymentConfig));
+          } catch (_) { }
+        }
         if (activePaymentConfig?.defaultMethod) {
           selectedPaymentMethod = activePaymentConfig.defaultMethod;
         }
+        refreshPaymentMethodsUI();
         if (activeShippingConfig?.shopCurrency) {
           storeCurrency = activeShippingConfig.shopCurrency;
         } else if (window.Shopify?.currency?.active) {
@@ -1336,6 +1350,25 @@
         addData.append("id", cleanVariantId);
         addData.append("quantity", quantity);
 
+        // Include any form properties from product form
+        if (productForm) {
+          const propInputs = productForm.querySelectorAll('[name^="properties["]');
+          propInputs.forEach(input => {
+            if (input.name && input.value) {
+              addData.append(input.name, input.value);
+            }
+          });
+        }
+
+        // Attach BixGrow affiliate properties if present and not already attached
+        const affData = getAffiliateTrackingData();
+        if (affData._bg_aff && !addData.has("properties[_bg_aff]")) {
+          addData.append("properties[_bg_aff]", affData._bg_aff);
+        }
+        if (affData._bg_click_id && !addData.has("properties[_bg_click_id]")) {
+          addData.append("properties[_bg_click_id]", affData._bg_click_id);
+        }
+
         try {
           const addRes = await fetch("/cart/add.js", {
             method: "POST",
@@ -1373,6 +1406,20 @@
         orderItems = finalCart.items.map(item => mapCartItemToOrderItem(item));
       } else if (cleanVariantId) {
         // Fallback directly to current variant so modal is never blank
+        const fallbackProperties = {};
+        if (productForm) {
+          const propInputs = productForm.querySelectorAll('[name^="properties["]');
+          propInputs.forEach(input => {
+            const m = input.name.match(/properties\[(.*?)\]/);
+            if (m && m[1] && input.value) {
+              fallbackProperties[m[1]] = input.value;
+            }
+          });
+        }
+        const affData = getAffiliateTrackingData();
+        if (affData._bg_aff && !fallbackProperties._bg_aff) fallbackProperties._bg_aff = affData._bg_aff;
+        if (affData._bg_click_id && !fallbackProperties._bg_click_id) fallbackProperties._bg_click_id = affData._bg_click_id;
+
         orderItems = [{
           variantId: cleanVariantId,
           title: details.title || "المنتج",
@@ -1383,7 +1430,8 @@
           cartDiscountPercent: 0,
           image: details.image || "",
           quantity: quantity,
-          available: details.available !== false
+          available: details.available !== false,
+          properties: fallbackProperties
         }];
       }
 
@@ -1588,7 +1636,8 @@
       discountTitle,
       image: item.image || item.featured_image?.url || "",
       quantity: item.quantity,
-      available: true
+      available: true,
+      properties: item.properties || {}
     };
   }
 
@@ -1622,43 +1671,43 @@
 
       fetch("/cart/change.js", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest"
         },
         body: JSON.stringify(changePayload)
       })
-      .then(r => r.json())
-      .then(async (cart) => {
-        const isInCart = cart.items && cart.items.some(ci => String(ci.variant_id) === String(rawVariantId) || (item.key && ci.key === item.key));
-        if (!isInCart && item.quantity > 0) {
-          // If not in cart, add it!
-          await fetch("/cart/add.js", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              "X-Requested-With": "XMLHttpRequest"
-            },
-            body: JSON.stringify({ id: rawVariantId, quantity: item.quantity })
-          });
-          const cRes = await fetch("/cart.js?_t=" + Date.now(), { cache: "no-store" });
-          cart = await cRes.json();
-        }
-        return cart;
-      })
-      .then(cart => {
-        if (!cart) return;
-        if (cart.currency) storeCurrency = cart.currency;
-        // Re-map items from fresh cart so Shopify automatic line-item discounts & volume tier breaks take effect!
-        if (cart.items && cart.items.length > 0) {
-          orderItems = cart.items.map(ci => mapCartItemToOrderItem(ci));
-          renderOrderItemsList();
-        }
-        refreshThemeCartUI(cart);
-      })
-      .catch((err) => {
-        console.warn("[Artiz COD] Error updating cart quantity:", err);
-      });
+        .then(r => r.json())
+        .then(async (cart) => {
+          const isInCart = cart.items && cart.items.some(ci => String(ci.variant_id) === String(rawVariantId) || (item.key && ci.key === item.key));
+          if (!isInCart && item.quantity > 0) {
+            // If not in cart, add it!
+            await fetch("/cart/add.js", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+              },
+              body: JSON.stringify({ id: rawVariantId, quantity: item.quantity })
+            });
+            const cRes = await fetch("/cart.js?_t=" + Date.now(), { cache: "no-store" });
+            cart = await cRes.json();
+          }
+          return cart;
+        })
+        .then(cart => {
+          if (!cart) return;
+          if (cart.currency) storeCurrency = cart.currency;
+          // Re-map items from fresh cart so Shopify automatic line-item discounts & volume tier breaks take effect!
+          if (cart.items && cart.items.length > 0) {
+            orderItems = cart.items.map(ci => mapCartItemToOrderItem(ci));
+            renderOrderItemsList();
+          }
+          refreshThemeCartUI(cart);
+        })
+        .catch((err) => {
+          console.warn("[Artiz COD] Error updating cart quantity:", err);
+        });
     }
   };
 
@@ -1675,25 +1724,25 @@
 
       fetch("/cart/change.js", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "X-Requested-With": "XMLHttpRequest"
         },
         body: JSON.stringify(changePayload)
       })
-      .then(r => r.json())
-      .then(cart => {
-        if (!cart) return;
-        if (cart.currency) storeCurrency = cart.currency;
-        if (cart.items) {
-          orderItems = cart.items.map(ci => mapCartItemToOrderItem(ci));
-          renderOrderItemsList();
-        }
-        refreshThemeCartUI(cart);
-      })
-      .catch((err) => {
-        console.warn("[Artiz COD] Error removing cart item:", err);
-      });
+        .then(r => r.json())
+        .then(cart => {
+          if (!cart) return;
+          if (cart.currency) storeCurrency = cart.currency;
+          if (cart.items) {
+            orderItems = cart.items.map(ci => mapCartItemToOrderItem(ci));
+            renderOrderItemsList();
+          }
+          refreshThemeCartUI(cart);
+        })
+        .catch((err) => {
+          console.warn("[Artiz COD] Error removing cart item:", err);
+        });
     }
   };
 
@@ -1751,7 +1800,7 @@
                     <span class="artiz-logged-in-name">مرحباً، ${cust.name || cust.firstName || "عميلنا العزيز"}</span>
                     <span class="artiz-logged-in-badge">مسجل الدخول</span>
                   </div>
-                  <p class="artiz-logged-in-desc">تم ملء بيانات الشحن المسجلة بحسابك تلقائياً. يمكنك تعديل أي حقل أدناه للشحن إلى عنوان مختلف.</p>
+                  <p class="artiz-logged-in-desc">بياناتك مسجلة مسبقاً؛ يمكنك تعديلها لعنوان شحن مختلف.</p>
                 </div>
               </div>
             `;
@@ -1821,8 +1870,10 @@
             </div>
           ` : ""}
 
-          <!-- Multi-Payment Methods Selector -->
-          ${renderPaymentMethodsSelector()}
+          <!-- Multi-Payment Methods Selector Container -->
+          <div id="artiz-payment-methods-container">
+            ${renderPaymentMethodsSelector()}
+          </div>
 
           <button type="submit" id="artiz-submit-order-btn" class="artiz-submit-button">
             <span id="artiz-btn-spinner" class="artiz-spinner" style="display:none;"></span>
@@ -1841,25 +1892,86 @@
   }
 
   function renderPaymentMethodsSelector() {
-    const methods = activePaymentConfig?.methods || {
+    const methods = activePaymentConfig?.methods || activeConfig?.paymentMethods?.methods || {
       cod: { id: "cod", enabled: true, title: "الدفع عند الاستلام", subtitle: "💵 ادفع بكل أمان وقت استلام المنتج.", badge: "نقدي", icon: "cash" },
-      wayl: { id: "wayl", enabled: false, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — SSL & 3D Secure", badge: "دفع آمن 100%", icon: "electronic" }
+      wayl: { id: "wayl", enabled: true, title: "دفع إلكتروني - WAYL", subtitle: "دفع آمن — SSL & 3D Secure", badge: "دفع آمن 100%", icon: "electronic" }
     };
 
-    const enabledKeys = (activePaymentConfig?.enabledMethods || ["cod"]).filter(k => methods[k]?.enabled === true);
+    // Determine all active methods
+    const explicitList = activePaymentConfig?.enabledMethods || activeConfig?.paymentMethods?.enabledMethods;
+    let enabledKeys = [];
+    if (Array.isArray(explicitList)) {
+      enabledKeys = explicitList.filter(k => methods[k]?.enabled !== false);
+    } else {
+      enabledKeys = Object.keys(methods).filter(k => methods[k]?.enabled === true);
+    }
 
-    // If 1 or 0 methods are active, DO NOT show selector!
-    if (enabledKeys.length <= 1) {
-      if (enabledKeys.length === 1) {
-        selectedPaymentMethod = enabledKeys[0];
-      } else {
-        selectedPaymentMethod = "cod";
+    // Also include any method with explicit enabled === true
+    Object.keys(methods).forEach(k => {
+      if (methods[k]?.enabled === true && !enabledKeys.includes(k)) {
+        enabledKeys.push(k);
       }
+    });
+
+    // Case 1: ALL Payment Methods Disabled!
+    if (enabledKeys.length === 0) {
+      selectedPaymentMethod = "";
+      const noPaymentMsg = activePaymentConfig?.noPaymentNotice || activeConfig?.noPaymentNotice || activeConfig?.paymentMethods?.noPaymentNotice || "نعتذر، المتجر لا يستقبل طلبات جديدة حالياً. سيتم استئناف استقبال الطلبات قريباً.";
+      
+      setTimeout(() => {
+        const submitBtn = document.getElementById("artiz-submit-order-btn");
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.classList.add("artiz-btn-disabled");
+          submitBtn.style.opacity = "0.5";
+          submitBtn.style.cursor = "not-allowed";
+          const label = document.getElementById("artiz-btn-label");
+          if (label) label.textContent = "الطلبات متوقفة مؤقتاً";
+        }
+      }, 0);
+
+      return `
+        <div class="artiz-payment-methods-section artiz-payment-disabled-alert">
+          <div class="artiz-disabled-banner">
+            <svg class="artiz-disabled-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="artiz-disabled-text">
+              <strong>الطلبات متوقفة مؤقتاً</strong>
+              <p>${noPaymentMsg}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Re-enable submit button if it was disabled by zero-methods check
+    setTimeout(() => {
+      const submitBtn = document.getElementById("artiz-submit-order-btn");
+      if (submitBtn && submitBtn.disabled && !submitBtn.classList.contains("artiz-btn-loading")) {
+        const hasSoldOut = orderItems.some(i => i.available === false);
+        if (!hasSoldOut) {
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("artiz-btn-disabled");
+          submitBtn.style.opacity = "1";
+          submitBtn.style.cursor = "pointer";
+          const label = document.getElementById("artiz-btn-label");
+          if (label) label.textContent = getSubmitButtonLabel();
+        }
+      }
+    }, 0);
+
+    // Case 2: Only 1 Method Enabled
+    if (enabledKeys.length === 1) {
+      selectedPaymentMethod = enabledKeys[0];
       return "";
     }
 
+    // Case 3: 2 or More Methods Enabled -> Show Modern Selector!
     if (!enabledKeys.includes(selectedPaymentMethod)) {
-      selectedPaymentMethod = enabledKeys[0] || "cod";
+      selectedPaymentMethod = activePaymentConfig?.defaultMethod || enabledKeys[0] || "cod";
     }
 
     return `
@@ -1867,17 +1979,17 @@
         <label class="artiz-payment-methods-title">طريقة الدفع والتأكيد *</label>
         <div class="artiz-payment-cards-grid">
           ${enabledKeys.map(key => {
-      const m = methods[key] || {};
-      const isSelected = selectedPaymentMethod === key;
-      const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
-      const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
-        ? "دفع إلكتروني - WAYL"
-        : (m.title || key);
-      const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
-        ? "دفع آمن — SSL & 3D Secure"
-        : (m.subtitle || "");
+            const m = methods[key] || {};
+            const isSelected = selectedPaymentMethod === key;
+            const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
+            const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
+              ? "دفع إلكتروني - WAYL"
+              : (m.title || key);
+            const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
+              ? "دفع آمن — SSL & 3D Secure"
+              : (m.subtitle || "");
 
-      return `
+            return `
               <div class="artiz-payment-card ${isSelected ? 'active' : ''}" data-method="${key}" onclick="window.artizSelectPaymentMethod('${key}')">
                 <div class="artiz-pay-radio-col">
                   <input type="radio" name="artiz_payment_choice" value="${key}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); window.artizSelectPaymentMethod('${key}');">
@@ -1902,10 +2014,17 @@
                 </div>
               </div>
             `;
-    }).join("")}
+          }).join("")}
         </div>
       </div>
     `;
+  }
+
+  function refreshPaymentMethodsUI() {
+    const container = document.getElementById("artiz-payment-methods-container");
+    if (container) {
+      container.innerHTML = renderPaymentMethodsSelector();
+    }
   }
 
   window.artizSelectPaymentMethod = function (methodKey) {
@@ -2052,6 +2171,8 @@
     if (activeConfig.addressMode === "cascading") {
       matchCustomerCascadingLocation();
     }
+
+    refreshPaymentMethodsUI();
 
     const overlay = document.getElementById("artiz-modal-overlay");
     if (overlay) overlay.classList.add("artiz-active");
@@ -2406,22 +2527,74 @@
 
   // 8. Capture Affiliate Attribution
   function getAffiliateTrackingData() {
+    if (activeConfig?.enableAffiliateTracking === false) {
+      return {};
+    }
+
     const affiliate = {};
     const urlParams = new URLSearchParams(window.location.search);
-    const keys = ["ref", "sca_ref", "bixgrow_ref", "bix_aff", "goaffpro_affiliate", "affiliate_id", "via", "partner"];
-    keys.forEach(k => {
-      if (urlParams.get(k)) affiliate[k] = urlParams.get(k);
+    const knownKeys = [
+      "_bg_aff", "_bg_click_id", "_bg_discount", "_bg_coupon",
+      "ref", "sca_ref", "bixgrow_ref", "bix_aff", "goaffpro_affiliate", 
+      "affiliate_id", "via", "partner", "utm_source", "utm_medium", "utm_campaign"
+    ];
+
+    // 1. URL Query Parameters
+    knownKeys.forEach(k => {
+      const val = urlParams.get(k);
+      if (val) affiliate[k] = val;
     });
 
-    const cookies = document.cookie.split(";");
-    cookies.forEach(c => {
-      const [k, v] = c.trim().split("=");
-      if (k && v) {
-        if (keys.includes(k) || k.includes("affiliate") || k.includes("bixgrow") || k.includes("goaffpro")) {
-          affiliate[k] = decodeURIComponent(v);
+    // Also check any parameter starting with _bg_ or bg_
+    for (const [k, v] of urlParams.entries()) {
+      if ((k.startsWith("_bg_") || k.startsWith("bg_")) && v) {
+        affiliate[k] = v;
+      }
+    }
+
+    // 2. Cookies (BixGrow, GoAffPro, Uppromote, etc.)
+    try {
+      const cookies = document.cookie.split(";");
+      cookies.forEach(c => {
+        const parts = c.trim().split("=");
+        const k = parts[0];
+        const v = parts.slice(1).join("=");
+        if (k && v) {
+          if (
+            k.startsWith("_bg_") ||
+            k.startsWith("bg_") ||
+            knownKeys.includes(k) ||
+            k.includes("affiliate") ||
+            k.includes("bixgrow") ||
+            k.includes("goaffpro")
+          ) {
+            affiliate[k] = decodeURIComponent(v);
+          }
+        }
+      });
+    } catch (_) {}
+
+    // 3. LocalStorage & SessionStorage
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("_bg_") || k.startsWith("bg_") || k.includes("bixgrow") || k.includes("goaffpro"))) {
+          const val = localStorage.getItem(k);
+          if (val && typeof val === "string") {
+            affiliate[k] = val;
+          }
         }
       }
-    });
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && (k.startsWith("_bg_") || k.startsWith("bg_") || k.includes("bixgrow") || k.includes("goaffpro"))) {
+          const val = sessionStorage.getItem(k);
+          if (val && typeof val === "string") {
+            affiliate[k] = val;
+          }
+        }
+      }
+    } catch (_) {}
 
     return affiliate;
   }
@@ -2526,6 +2699,12 @@
       }
     }
 
+    if (!selectedPaymentMethod) {
+      const noPaymentMsg = activePaymentConfig?.noPaymentNotice || activeConfig?.noPaymentNotice || "نعتذر، المتجر لا يستقبل طلبات جديدة حالياً. سيتم استئناف استقبال الطلبات قريباً.";
+      alert(noPaymentMsg);
+      return;
+    }
+
     const submitBtn = document.getElementById("artiz-submit-order-btn");
     const spinner = document.getElementById("artiz-btn-spinner");
     const label = document.getElementById("artiz-btn-label");
@@ -2558,7 +2737,8 @@
           price: item.price, // Exact discounted price!
           originalPrice: item.originalPrice,
           unitDiscount: item.unitDiscount || 0,
-          discountTitle: item.discountTitle || ""
+          discountTitle: item.discountTitle || "",
+          properties: item.properties || {}
         })),
         shippingPrice: currentCalculatedShipping.cost,
         shippingTitle: currentCalculatedShipping.title,

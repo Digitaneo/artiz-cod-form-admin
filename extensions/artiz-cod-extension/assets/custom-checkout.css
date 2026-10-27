@@ -1399,4 +1399,41 @@ body.artiz-hijack-mode .artiz-dual-actions {
   margin-bottom: 10px !important;
 }
 
+/* ============================================================
+   16. DISABLED PAYMENTS NOTICE BANNER
+   ============================================================ */
+.artiz-payment-disabled-alert {
+  margin: 16px 0 !important;
+}
+.artiz-disabled-banner {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  padding: 14px 16px !important;
+  background: #fff7ed !important;
+  border: 1.5px solid #fed7aa !important;
+  border-radius: 12px !important;
+  color: #9a3412 !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+.artiz-disabled-banner .artiz-disabled-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #ea580c;
+}
+.artiz-disabled-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #9a3412;
+}
+.artiz-disabled-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c2410c;
+}
+
 
