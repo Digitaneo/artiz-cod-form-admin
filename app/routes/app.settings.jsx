@@ -38,14 +38,14 @@ export async function action({ request }) {
     if (actionType === "import_json") {
       const jsonRaw = formData.get("jsonContent");
       if (!jsonRaw) {
-        throw new Error("يرجى إدخال محتوى ملف JSON للاستيراد.");
+        throw new Error("Please enter JSON configuration content to import.");
       }
 
       let parsed;
       try {
         parsed = JSON.parse(jsonRaw);
       } catch (parseErr) {
-        throw new Error("تنسيق JSON غير صالح: " + parseErr.message);
+        throw new Error("Invalid JSON format: " + parseErr.message);
       }
 
       // Extract settings payload
@@ -60,11 +60,11 @@ export async function action({ request }) {
 
       return {
         ok: true,
-        message: "تم استيراد كافة المتغيرات والإعدادات بنجاح وتطبيقها على متجرك فورياً!"
+        message: "Configuration successfully imported and updated on storefront!"
       };
     }
 
-    return { ok: false, error: "إجراء غير معروف" };
+    return { ok: false, error: "Unknown action" };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -142,10 +142,10 @@ export default function SettingsPage() {
   return (
     <AppLayout title="Settings & JSON Backup" subtitle="Configuration Export/Import & Identifiers Engine">
       <Page
-        title="إعدادات النظام والنسخ الاحتياطي (Settings & JSON Backup)"
+        title="Settings & JSON Backup"
         primaryAction={
           <Button variant="primary" onClick={handleExportJson}>
-            تصدير ملف الإعدادات الكاملة (Export Full Configuration JSON)
+            Export Full Configuration JSON
           </Button>
         }
       >
@@ -154,7 +154,7 @@ export default function SettingsPage() {
             <Banner
               key={saveFeedback.timestamp}
               tone={saveFeedback.error ? "critical" : "success"}
-              title={saveFeedback.error ? "حدث خطأ" : "تم بنجاح"}
+              title={saveFeedback.error ? "Action Failed" : "Success"}
               onDismiss={() => setSaveFeedback(null)}
             >
               <Text as="p">{saveFeedback.message}</Text>
@@ -165,15 +165,15 @@ export default function SettingsPage() {
           <Card>
             <BlockStack gap="300">
               <InlineStack align="space-between">
-                <Text variant="headingMd" as="h2">1. تصدير إعدادات المتجر (Export Full Configuration JSON)</Text>
-                <Badge tone="success">نسخ احتياطي كامل</Badge>
+                <Text variant="headingMd" as="h2">1. Export Full Configuration (JSON Backup)</Text>
+                <Badge tone="success">Complete Backup</Badge>
               </InlineStack>
               <Text as="p" tone="subdued">
-                يمكنك تحميل ملف JSON يحتوي على كافة نصوص وأسماء الأزرار والمعرفات البرمجية، إعدادات الشحن، بوابات الدفع، وقواعد النموذج الخاصة بمتجرك.
+                Download a complete JSON file containing all button copy, UI text variables, color schemes, shipping rules, and payment gateways for your store.
               </Text>
               <InlineStack gap="300">
                 <Button variant="primary" size="large" onClick={handleExportJson}>
-                  💾 تحميل ملف الإعدادات (Download Configuration JSON)
+                  💾 Download Configuration JSON
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -183,11 +183,11 @@ export default function SettingsPage() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingMd" as="h2">2. استيراد وتطبيق الإعدادات (Import Configuration JSON)</Text>
-                <Badge tone="attention">تحديث فوري</Badge>
+                <Text variant="headingMd" as="h2">2. Import Configuration JSON</Text>
+                <Badge tone="attention">Instant Sync</Badge>
               </InlineStack>
               <Text as="p" tone="subdued">
-                ارفع ملف JSON تم تصديره سابقاً أو الصق محتواه بالأسفل لتحديث كافة النصوص والمتغيرات والمعرفات وقواعد الشحن بضغطة زر واحدة:
+                Upload a previously exported JSON backup or paste its contents below to update all labels, colors, and shipping rates instantly:
               </Text>
 
               <Box>
@@ -200,13 +200,13 @@ export default function SettingsPage() {
               </Box>
 
               <TextField
-                label="محتوى ملف JSON (JSON Configuration Content)"
+                label="JSON Configuration Content"
                 value={importJsonText}
                 onChange={setImportJsonText}
                 multiline={8}
                 autoComplete="off"
-                placeholder='الصق كود الـ JSON هنا أو اختر الملف أعلاه...'
-                helpText="سيتم دمج وتطبيق كافة التسميات والمتغيرات المخزنة بالملف وحفظها مباشرة بقاعدة بيانات متجرك."
+                placeholder="Paste JSON configuration content here or choose a file above..."
+                helpText="All settings, custom labels, and rules from the JSON will be merged and saved directly into your store configuration."
               />
 
               <InlineStack align="end">
@@ -216,7 +216,7 @@ export default function SettingsPage() {
                   disabled={!importJsonText.trim()}
                   onClick={handleImportSubmit}
                 >
-                  استيراد وحفظ الإعدادات فورياً (Import & Apply JSON)
+                  Import & Apply Configuration
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -225,44 +225,44 @@ export default function SettingsPage() {
           {/* 3. Text Identifiers Cheatsheet */}
           <Card>
             <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">3. جدول معرفات النصوص والأزرار البرمجية (UI Text Identifiers Reference)</Text>
+              <Text variant="headingMd" as="h2">3. UI Text Identifiers Reference</Text>
               <Text as="p" tone="subdued">
-                الأكواد البرمجية والمنطق مفصولة تماماً عن مسميات الأزرار والنصوص. يمكنك تسمية وتغيير أي نص لأي لغة ترغب بها عبر هذه المعرفات:
+                Code logic is completely decoupled from customer-facing text copy. You can customize any label in any language via these identifiers:
               </Text>
               <Divider />
               <List type="bullet">
                 <List.Item>
-                  <code>buttonText</code>: نص زر الطلب السريع بصفحة المنتج (مثال: "أطلب الآن").
+                  <code>buttonText</code>: Product page primary Quick Order button text (e.g. "أطلب الآن").
                 </List.Item>
                 <List.Item>
-                  <code>submitButtonText</code>: نص زر إكمال وتأكيد الطلب أسفل النافذة أو الدرج (مثال: "إكمال الدفع" / "تأكيد الطلب").
+                  <code>submitButtonText</code>: Modal order confirmation button text (e.g. "إكمال الدفع" / "تأكيد الطلب").
                 </List.Item>
                 <List.Item>
-                  <code>formTitle</code>: عنوان نافذة أو درج الطلب (مثال: "معلومات الطلب").
+                  <code>formTitle</code>: Form / Modal header title (e.g. "معلومات الطلب").
                 </List.Item>
                 <List.Item>
-                  <code>addToCartButtonText</code>: نص زر الإضافة للسلة بصفحة المنتج (مثال: "أضف إلى السلة").
+                  <code>addToCartButtonText</code>: Product page Add to Cart button text (e.g. "أضف إلى السلة").
                 </List.Item>
                 <List.Item>
-                  <code>addingToCartText</code>: نص زر السلة أثناء عملية الإضافة (مثال: "جاري الإضافة...").
+                  <code>addingToCartText</code>: Text while adding item to cart (e.g. "جاري الإضافة...").
                 </List.Item>
                 <List.Item>
-                  <code>addedToCartText</code>: نص زر السلة بعد نجاح الإضافة (مثال: "✓ تمت الإضافة").
+                  <code>addedToCartText</code>: Feedback text after successfully adding to cart (e.g. "✓ تمت الإضافة").
                 </List.Item>
                 <List.Item>
-                  <code>cartCheckoutButtonText</code>: نص زر الدفع في السلة ودرج السلة (Cart Drawer) (مثال: "إتمام الطلب").
+                  <code>cartCheckoutButtonText</code>: Button text in slide cart drawers and cart page (e.g. "إتمام الطلب").
                 </List.Item>
                 <List.Item>
-                  <code>submittingOrderText</code>: نص زر تأكيد الطلب أثناء التسجيل (مثال: "جاري تأكيد وتسجيل طلبك...").
+                  <code>discountBadgePrefix</code>: Single badge prefix next to discounted items (e.g. "خصم").
                 </List.Item>
                 <List.Item>
-                  <code>outOfStockText</code>: نص الأزرار عندما يكون المنتج أو المتغير غير متوفر (مثال: "غير متوفر").
+                  <code>submittingOrderText</code>: Feedback text while order is being placed (e.g. "جاري تأكيد وتسجيل طلبك...").
                 </List.Item>
                 <List.Item>
-                  <code>checkoutCartOnlyText</code>: نص زر الشراء عندما يكون المنتج الحالي غير متوفر ولكن السلة بها منتجات (مثال: "إتمام طلب السلة").
+                  <code>outOfStockText</code>: Button text when a product/variant is out of stock (e.g. "غير متوفر").
                 </List.Item>
                 <List.Item>
-                  <code>emptyCartText</code>: نص الرسالة التوضيحية داخل النافذة عندما تكون السلة فارغة (مثال: "السلة فارغة").
+                  <code>emptyCartText</code>: Explanatory message when the shopping cart is empty (e.g. "السلة فارغة").
                 </List.Item>
               </List>
             </BlockStack>
@@ -271,7 +271,7 @@ export default function SettingsPage() {
           {/* 4. Active Live Config Preview */}
           <Card>
             <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">4. معاينة الإعدادات النشطة حالياً (Live Configuration Preview)</Text>
+              <Text variant="headingMd" as="h2">4. Live Configuration Preview</Text>
               <Box
                 padding="300"
                 background="bg-surface-secondary"

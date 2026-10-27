@@ -1,6 +1,11 @@
 :root {
-  --artiz-primary: #008060;
-  --artiz-primary-hover: #006e52;
+  --artiz-primary: #020a25;
+  --artiz-primary-hover: #0a1845;
+  --artiz-primary-text: #ffffff;
+  --artiz-secondary-bg: #ffffff;
+  --artiz-secondary-hover: #f8fafc;
+  --artiz-secondary-text: #1e293b;
+  --artiz-secondary-border: #cbd5e1;
   --artiz-text: #1a1a1a;
   --artiz-muted: #666666;
   --artiz-border: #e2e8f0;
@@ -22,6 +27,14 @@ body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons button[type="submit"]:
 body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons [data-shopify="payment-button"],
 body:not(.artiz-hijack-mode) quick-buy-drawer .shopify-payment-button,
 body:not(.artiz-hijack-mode) quick-buy-drawer button[name="add"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] [data-shopify="payment-button"],
+body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] .shopify-payment-button,
+body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] [data-shopify="payment-button"],
+body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] .shopify-payment-button,
+body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
 body:not(.artiz-hijack-mode) cart-drawer form[action*="/cart"] button[name="checkout"],
 body:not(.artiz-hijack-mode) .cart-drawer form[action*="/cart"] button[name="checkout"],
 body:not(.artiz-hijack-mode) form.cart-form button[name="checkout"],
@@ -94,17 +107,17 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
 /* 1. Secondary Button (أضف إلى السلة) */
 .artiz-btn-secondary,
 .artiz-secondary-btn {
-  background: #ffffff !important;
-  color: #1e293b !important;
-  border: 1.5px solid #cbd5e1 !important;
+  background: var(--artiz-secondary-bg, #ffffff) !important;
+  color: var(--artiz-secondary-text, #1e293b) !important;
+  border: 1.5px solid var(--artiz-secondary-border, #cbd5e1) !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04) !important;
 }
 
 .artiz-btn-secondary:hover:not(:disabled),
 .artiz-secondary-btn:hover:not(:disabled) {
-  background: #f8fafc !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
+  background: var(--artiz-secondary-hover, #f8fafc) !important;
+  border-color: var(--artiz-secondary-border, #cbd5e1) !important;
+  color: var(--artiz-secondary-text, #1e293b) !important;
   transform: translateY(-2px) !important;
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08) !important;
 }
@@ -128,18 +141,19 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
 /* 2. Primary Button (اشتري الآن - الدفع عند الاستلام) */
 .artiz-btn-primary,
 .artiz-cod-trigger-btn {
-  background: var(--artiz-primary, #008060) !important;
+  background: var(--artiz-primary, #020a25) !important;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(0, 0, 0, 0.06) 100%) !important;
-  color: #ffffff !important;
+  color: var(--artiz-primary-text, #ffffff) !important;
   border: 1.5px solid rgba(0, 0, 0, 0.08) !important;
-  box-shadow: 0 4px 14px rgba(0, 128, 96, 0.28) !important;
+  box-shadow: 0 4px 14px rgba(2, 10, 37, 0.28) !important;
 }
 
 .artiz-btn-primary:hover:not(:disabled),
 .artiz-cod-trigger-btn:hover:not(:disabled) {
-  background-color: var(--artiz-primary-hover, #006e52) !important;
+  background-color: var(--artiz-primary-hover, #0a1845) !important;
+  color: var(--artiz-primary-text, #ffffff) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 18px rgba(0, 128, 96, 0.38) !important;
+  box-shadow: 0 6px 18px rgba(2, 10, 37, 0.38) !important;
 }
 
 .artiz-btn-primary:hover .artiz-btn-icon,
@@ -176,9 +190,9 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
   align-items: center !important;
   justify-content: center !important;
   gap: 10px !important;
-  background: var(--artiz-primary, #008060) !important;
+  background: var(--artiz-primary, #020a25) !important;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(0, 0, 0, 0.06) 100%) !important;
-  color: #ffffff !important;
+  color: var(--artiz-primary-text, #ffffff) !important;
   border: 1.5px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: var(--artiz-radius, 10px) !important;
   font-family: inherit !important;
@@ -189,7 +203,7 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
   text-decoration: none !important;
   cursor: pointer !important;
   box-sizing: border-box !important;
-  box-shadow: 0 4px 14px rgba(0, 128, 96, 0.28) !important;
+  box-shadow: 0 4px 14px rgba(2, 10, 37, 0.28) !important;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative !important;
   overflow: hidden !important;
@@ -197,9 +211,10 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
 }
 
 .artiz-cart-cod-btn:hover:not(:disabled) {
-  background-color: var(--artiz-primary-hover, #006e52) !important;
+  background-color: var(--artiz-primary-hover, #0a1845) !important;
+  color: var(--artiz-primary-text, #ffffff) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 18px rgba(0, 128, 96, 0.38) !important;
+  box-shadow: 0 6px 18px rgba(2, 10, 37, 0.38) !important;
 }
 
 .artiz-cart-cod-btn:active:not(:disabled) {
@@ -415,13 +430,14 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
 
 .artiz-item-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  background: var(--artiz-card-bg);
-  border: 1px solid var(--artiz-border);
+  background: var(--artiz-card-bg, #f8fafc);
+  border: 1px solid var(--artiz-border, #e2e8f0);
   border-radius: 10px;
-  padding: 10px;
+  padding: 10px 12px;
   position: relative;
+  transition: border-color 0.2s ease;
 }
 
 .artiz-item-thumb {
@@ -431,46 +447,81 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
   object-fit: cover;
   background: #fff;
   border: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
-.artiz-item-info {
+.artiz-item-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.artiz-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.artiz-item-title-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .artiz-item-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--artiz-text);
-  white-space: nowrap;
+  color: var(--artiz-text, #1e293b);
+  line-height: 1.35;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0 0 4px 0;
+  word-break: break-word;
 }
 
 .artiz-item-variant {
-  font-size: 12px;
-  color: var(--artiz-muted);
-  margin: 0 0 6px 0;
+  font-size: 11.5px;
+  color: var(--artiz-muted, #64748b);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.artiz-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .artiz-price-stack {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .artiz-item-price {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--artiz-primary);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--artiz-primary, #020a25);
+  white-space: nowrap;
 }
 
 .artiz-item-compare-price {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #94a3b8;
   text-decoration: line-through;
+  white-space: nowrap;
 }
 
 .artiz-discount-tag {
@@ -478,10 +529,11 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
   font-weight: 700;
   background: #fee2e2;
   color: #dc2626;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 
 .artiz-discount-tag.artiz-cart-tag,
@@ -497,24 +549,28 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
   display: flex;
   align-items: center;
   direction: ltr !important;
-  border: 1px solid var(--artiz-border);
+  border: 1px solid var(--artiz-border, #e2e8f0);
   border-radius: 6px;
   background: #ffffff;
   overflow: hidden;
+  height: 26px;
+  flex-shrink: 0;
 }
 
 .artiz-stepper button {
   background: none;
   border: none;
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
+  width: 24px;
+  height: 26px;
+  font-size: 15px;
   font-weight: bold;
   cursor: pointer;
-  color: var(--artiz-text);
+  color: var(--artiz-text, #1e293b);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.15s ease;
+  padding: 0;
 }
 
 .artiz-stepper button:hover {
@@ -522,23 +578,27 @@ body:not(.artiz-hijack-mode) .drawer__checkout {
 }
 
 .artiz-stepper span {
-  padding: 0 10px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 0 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  min-width: 20px;
+  text-align: center;
 }
 
 .artiz-item-remove {
   background: none;
   border: none;
-  color: #ef4444;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
-  font-size: 14px;
-  margin-right: 4px;
-  transition: transform 0.15s ease;
+  padding: 2px 4px;
+  font-size: 13px;
+  line-height: 1;
+  transition: color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
 }
 
 .artiz-item-remove:hover {
+  color: #ef4444;
   transform: scale(1.15);
 }
 

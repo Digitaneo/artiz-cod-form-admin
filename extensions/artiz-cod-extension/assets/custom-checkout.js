@@ -334,9 +334,7 @@
     activeConfig = getFallbackConfig();
     if (rootEl?.dataset.primaryColor && !activeConfig.primaryColor) activeConfig.primaryColor = rootEl.dataset.primaryColor;
     if (rootEl?.dataset.buttonText && !activeConfig.buttonText) activeConfig.buttonText = rootEl.dataset.buttonText;
-    if (activeConfig.primaryColor) {
-      document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
-    }
+    applyColorVariables(activeConfig);
 
     const activeCountry = detectActiveCountryCode();
     ensureCountryLocationsLoaded(activeCountry);
@@ -370,9 +368,7 @@
             document.documentElement.classList.remove("artiz-hijack-mode");
             if (document.body) document.body.classList.remove("artiz-hijack-mode");
           }
-          if (activeConfig.primaryColor) {
-            document.documentElement.style.setProperty("--artiz-primary", activeConfig.primaryColor);
-          }
+          applyColorVariables(activeConfig);
 
           // Instantly sync UI text variables to active DOM elements
           const buyTexts = document.querySelectorAll("#artiz-buy-now-text");
@@ -478,8 +474,14 @@
       checkoutCartOnlyText: "إتمام طلب السلة",
       emptyCartText: "السلة فارغة",
       emptyCartAlert: "سلة التسوق فارغة، يرجى إضافة منتجات أولاً.",
+      discountBadgePrefix: "خصم",
       primaryColor: "#020a25",
+      primaryHoverColor: "#0a1845",
+      buttonTextColor: "#ffffff",
       secondaryColor: "#ffffff",
+      secondaryHoverColor: "#f8fafc",
+      secondaryTextColor: "#1e293b",
+      secondaryBorderColor: "#cbd5e1",
       enableDiscounts: true,
       enableAffiliateTracking: true,
       enableCartSummary: true,
@@ -490,6 +492,18 @@
     };
 
     return Object.assign(defaults, cached);
+  }
+
+  function applyColorVariables(cfg) {
+    if (!cfg) return;
+    const root = document.documentElement;
+    if (cfg.primaryColor) root.style.setProperty("--artiz-primary", cfg.primaryColor);
+    if (cfg.primaryHoverColor) root.style.setProperty("--artiz-primary-hover", cfg.primaryHoverColor);
+    if (cfg.buttonTextColor) root.style.setProperty("--artiz-primary-text", cfg.buttonTextColor);
+    if (cfg.secondaryColor) root.style.setProperty("--artiz-secondary-bg", cfg.secondaryColor);
+    if (cfg.secondaryHoverColor) root.style.setProperty("--artiz-secondary-hover", cfg.secondaryHoverColor);
+    if (cfg.secondaryTextColor) root.style.setProperty("--artiz-secondary-text", cfg.secondaryTextColor);
+    if (cfg.secondaryBorderColor) root.style.setProperty("--artiz-secondary-border", cfg.secondaryBorderColor);
   }
 
 
@@ -509,6 +523,14 @@
       body:not(.artiz-hijack-mode) quick-buy-drawer buy-buttons [data-shopify="payment-button"],
       body:not(.artiz-hijack-mode) quick-buy-drawer .shopify-payment-button,
       body:not(.artiz-hijack-mode) quick-buy-drawer button[name="add"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] [data-shopify="payment-button"],
+      body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] .shopify-payment-button,
+      body:not(.artiz-hijack-mode) [part="body"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[type="submit"]:not(.artiz-btn),
+      body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] [data-shopify="payment-button"],
+      body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] .shopify-payment-button,
+      body:not(.artiz-hijack-mode) [part="content"] form[action*="/cart/add"] button[name="add"]:not(.artiz-btn),
       body:not(.artiz-hijack-mode) cart-drawer form[action*="/cart"] button[name="checkout"],
       body:not(.artiz-hijack-mode) .cart-drawer form[action*="/cart"] button[name="checkout"],
       body:not(.artiz-hijack-mode) form.cart-form button[name="checkout"] {
@@ -520,7 +542,13 @@
 
   function setupAllProductTriggers() {
     if (!activeConfig || !activeConfig.directBuyTrigger) return;
-    const forms = document.querySelectorAll('form[action*="/cart/add"]');
+    const forms = Array.from(document.querySelectorAll('form[action*="/cart/add"]'));
+    // Also discover forms inside quick buy drawers, modal dialogs, and custom shadow/part containers
+    const containers = document.querySelectorAll('quick-buy-drawer, [part="content"], [part="body"], modal-dialog, .drawer, [data-cart-drawer]');
+    containers.forEach(c => {
+      const f = c.querySelector?.('form[action*="/cart/add"]');
+      if (f && !forms.includes(f)) forms.push(f);
+    });
     forms.forEach(f => {
       setupProductPageTrigger(f);
     });
@@ -575,8 +603,10 @@
     }
 
     // If an App Block (#artiz-cod-form-wrapper) is already present and visible in this product section, do not duplicate!
+    // But NEVER skip quick-buy drawers, slotted dialogs, or slide drawers!
+    const isDrawerOrModal = Boolean(productForm.closest("quick-buy-drawer, [part='body'], [part='content'], modal-dialog, .quick-buy, .drawer, [data-cart-drawer]"));
     const nearbyAppBlock = productForm.closest(".product, .product-info, [data-section-type='product'], main")?.querySelector("#artiz-cod-form-wrapper");
-    if (nearbyAppBlock) {
+    if (nearbyAppBlock && !isDrawerOrModal) {
       updateProductButtonsAvailability(productForm);
       return;
     }
@@ -1047,12 +1077,17 @@
       const qtyInput = productForm?.querySelector('input[name="quantity"]');
       const quantity = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
 
+      const cleanVariantId = details.variantId ? String(details.variantId).replace(/\D/g, "") : null;
+
+      // 1. Fetch current cart FIRST to verify if item is already in cart
+      const currentCartRes = await fetch("/cart.js?_t=" + Date.now());
+      const currentCart = await currentCartRes.json();
+      if (currentCart.currency) storeCurrency = currentCart.currency;
+
       // If variant is unavailable
       if (!details.available) {
-        const cRes = await fetch("/cart.js?_t=" + Date.now());
-        const cart = await cRes.json();
-        if (cart.items && cart.items.length > 0) {
-          orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+        if (currentCart.items && currentCart.items.length > 0) {
+          orderItems = currentCart.items.map(item => mapCartItemToOrderItem(item));
           openArtizModal();
         } else {
           alert("عذراً، هذا المنتج غير متوفر حالياً ولا توجد منتجات أخرى في سلتك.");
@@ -1065,9 +1100,15 @@
         return;
       }
 
-      // Add to Shopify cart with sanitized variantId
-      const cleanVariantId = details.variantId ? String(details.variantId).replace(/\D/g, "") : null;
-      if (cleanVariantId) {
+      // Check if this variant is ALREADY in the customer's cart
+      const isAlreadyInCart = cleanVariantId && currentCart.items && currentCart.items.some(
+        item => String(item.variant_id) === cleanVariantId || String(item.id) === cleanVariantId
+      );
+
+      let finalCart = currentCart;
+
+      // Only add to cart if NOT already present! Prevents duplicate quantity +1 bug
+      if (!isAlreadyInCart && cleanVariantId) {
         const addData = new FormData();
         addData.append("id", cleanVariantId);
         addData.append("quantity", quantity);
@@ -1078,18 +1119,17 @@
             body: addData,
             headers: { "X-Requested-With": "XMLHttpRequest" }
           });
+          // Re-fetch cart with freshly added item to detect quantity discounts, tier thresholds, etc.
+          const updatedCartRes = await fetch("/cart.js?_t=" + Date.now());
+          finalCart = await updatedCartRes.json();
+          if (finalCart.currency) storeCurrency = finalCart.currency;
         } catch (addErr) {
           console.warn("[Artiz COD] /cart/add.js error:", addErr);
         }
       }
 
-      // Fetch the updated cart - Single Source of Truth!
-      const cartRes = await fetch("/cart.js?_t=" + Date.now());
-      const cart = await cartRes.json();
-      if (cart.currency) storeCurrency = cart.currency;
-
-      if (cart.items && cart.items.length > 0) {
-        orderItems = cart.items.map(item => mapCartItemToOrderItem(item));
+      if (finalCart.items && finalCart.items.length > 0) {
+        orderItems = finalCart.items.map(item => mapCartItemToOrderItem(item));
       } else if (cleanVariantId) {
         // Fallback directly to current variant so modal is never blank
         orderItems = [{
@@ -1107,7 +1147,7 @@
       }
 
       const countBadges = document.querySelectorAll('.cart-count-bubble, [data-cart-count], .cart-count');
-      countBadges.forEach(b => { b.textContent = cart.item_count || orderItems.reduce((s, i) => s + i.quantity, 0); });
+      countBadges.forEach(b => { b.textContent = finalCart.item_count || orderItems.reduce((s, i) => s + i.quantity, 0); });
 
       // Open the modal with authentic data
       openArtizModal();
@@ -1721,36 +1761,39 @@
 
     if (submitBtn) submitBtn.disabled = false;
 
-    // Render all cart items cleanly with stepper and remove button
+    // Render all cart items cleanly with stepper, single discount badge, and responsive layout
     container.innerHTML = orderItems.map((item, idx) => {
       const hasDiscount = item.originalPrice && item.originalPrice > item.price;
       const discountPercent = hasDiscount ? Math.round((1 - (item.price / item.originalPrice)) * 100) : 0;
       const autoPercent = item.cartDiscountPercent || (item.unitDiscount > 0 && item.originalPrice > 0 ? Math.round((item.unitDiscount / item.originalPrice) * 100) : 0);
+      const effectiveDiscountPercent = discountPercent > 0 ? discountPercent : autoPercent;
+      const discountPrefix = activeConfig?.discountBadgePrefix || "خصم";
 
       return `
         <div class="artiz-item-card">
           ${item.image ? `<img src="${item.image}" alt="${item.title}" class="artiz-item-thumb">` : ""}
-          <div class="artiz-item-info">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:2px;">
-              <p class="artiz-item-title" style="margin:0;">${item.title}</p>
-              ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
-              ${autoPercent > 0 ? `<span class="artiz-discount-tag artiz-auto-discount-badge">-${autoPercent}%</span>` : ""}
+          <div class="artiz-item-content">
+            <div class="artiz-item-header">
+              <div class="artiz-item-title-wrap">
+                <p class="artiz-item-title" title="${item.title}">${item.title}</p>
+                ${item.available === false ? `<span class="artiz-stock-out-badge">نفذ من المخزون</span>` : ""}
+              </div>
+              ${orderItems.length > 1 ? `<button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف" aria-label="حذف المنتج">✕</button>` : ""}
             </div>
             ${item.variantTitle ? `<p class="artiz-item-variant">${item.variantTitle}</p>` : ""}
-            <div class="artiz-price-stack">
-              <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
-              ${hasDiscount ? `
-                <span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>
-                <span class="artiz-discount-tag">خصم ${discountPercent}%</span>
-              ` : ""}
+            <div class="artiz-item-footer">
+              <div class="artiz-price-stack">
+                <span class="artiz-item-price">${formatMoney(item.price * item.quantity)}</span>
+                ${hasDiscount ? `<span class="artiz-item-compare-price">${formatMoney(item.originalPrice * item.quantity)}</span>` : ""}
+                ${effectiveDiscountPercent > 0 ? `<span class="artiz-discount-tag">${discountPrefix} ${effectiveDiscountPercent}%</span>` : ""}
+              </div>
+              <div class="artiz-stepper">
+                <button type="button" onclick="artizUpdateQty(${idx}, -1)" aria-label="Decrease quantity">-</button>
+                <span>${item.quantity}</span>
+                <button type="button" onclick="artizUpdateQty(${idx}, 1)" aria-label="Increase quantity">+</button>
+              </div>
             </div>
           </div>
-          <div class="artiz-stepper">
-            <button type="button" onclick="artizUpdateQty(${idx}, -1)">-</button>
-            <span>${item.quantity}</span>
-            <button type="button" onclick="artizUpdateQty(${idx}, 1)">+</button>
-          </div>
-          ${orderItems.length > 1 ? `<button type="button" class="artiz-item-remove" onclick="artizRemoveItem(${idx})" title="حذف">✕</button>` : ""}
         </div>
       `;
     }).join("");

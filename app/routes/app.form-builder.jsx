@@ -28,8 +28,14 @@ export async function loader({ request }) {
       formTitle: "معلومات الطلب",
       addToCartButtonText: "أضف إلى السلة",
       cartCheckoutButtonText: "إتمام الطلب",
+      discountBadgePrefix: "خصم",
       primaryColor: "#020a25",
+      primaryHoverColor: "#0a1845",
+      buttonTextColor: "#ffffff",
       secondaryColor: "#ffffff",
+      secondaryHoverColor: "#f8fafc",
+      secondaryTextColor: "#1e293b",
+      secondaryBorderColor: "#cbd5e1",
       enableDiscounts: true,
       enableAffiliateTracking: true,
       enableCartSummary: true,
@@ -42,7 +48,7 @@ export async function loader({ request }) {
         address: true,
         note: false
       },
-      citiesList: "الرياض, جدة, مكة المكرمة, المدينة المنورة, الدمام, أخرى"
+      citiesList: "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, الرياض, جدة, بغداد, أخرى"
     };
 
     return { config: formConfig, ok: true };
@@ -66,7 +72,7 @@ export async function action({ request }) {
       })
     });
 
-    return { ok: true, message: "تم حفظ إعدادات النموذج بنجاح وتحديث المتجر فورياً!" };
+    return { ok: true, message: "Configuration saved successfully and updated on storefront!" };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -87,7 +93,17 @@ export default function FormBuilderPage() {
   const [formTitle, setFormTitle] = useState(config.formTitle || "معلومات الطلب");
   const [addToCartButtonText, setAddToCartButtonText] = useState(config.addToCartButtonText || "أضف إلى السلة");
   const [cartCheckoutButtonText, setCartCheckoutButtonText] = useState(config.cartCheckoutButtonText || "إتمام الطلب");
+  const [discountBadgePrefix, setDiscountBadgePrefix] = useState(config.discountBadgePrefix || "خصم");
+
+  // Root Colors
   const [primaryColor, setPrimaryColor] = useState(config.primaryColor || "#020a25");
+  const [primaryHoverColor, setPrimaryHoverColor] = useState(config.primaryHoverColor || "#0a1845");
+  const [buttonTextColor, setButtonTextColor] = useState(config.buttonTextColor || "#ffffff");
+  const [secondaryColor, setSecondaryColor] = useState(config.secondaryColor || "#ffffff");
+  const [secondaryHoverColor, setSecondaryHoverColor] = useState(config.secondaryHoverColor || "#f8fafc");
+  const [secondaryTextColor, setSecondaryTextColor] = useState(config.secondaryTextColor || "#1e293b");
+  const [secondaryBorderColor, setSecondaryBorderColor] = useState(config.secondaryBorderColor || "#cbd5e1");
+
   const [enableDiscounts, setEnableDiscounts] = useState(config.enableDiscounts !== false);
   const [enableAffiliateTracking, setEnableAffiliateTracking] = useState(config.enableAffiliateTracking !== false);
   const [enableCartSummary, setEnableCartSummary] = useState(config.enableCartSummary !== false);
@@ -102,7 +118,7 @@ export default function FormBuilderPage() {
   const [addressMode, setAddressMode] = useState(config.addressMode || "standard");
 
   const [citiesList, setCitiesList] = useState(
-    Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, مكناس, وجدة, أخرى")
+    Array.isArray(config.citiesList) ? config.citiesList.join(", ") : (config.citiesList || "الدار البيضاء, الرباط, مراكش, فاس, طنجة, أكادير, الرياض, جدة, بغداد, أخرى")
   );
 
   const [enableCod, setEnableCod] = useState(config.paymentMethods?.methods?.cod?.enabled !== false);
@@ -140,7 +156,14 @@ export default function FormBuilderPage() {
       formTitle,
       addToCartButtonText,
       cartCheckoutButtonText,
+      discountBadgePrefix,
       primaryColor,
+      primaryHoverColor,
+      buttonTextColor,
+      secondaryColor,
+      secondaryHoverColor,
+      secondaryTextColor,
+      secondaryBorderColor,
       enableDiscounts,
       enableAffiliateTracking,
       enableCartSummary,
@@ -178,36 +201,36 @@ export default function FormBuilderPage() {
   const modes = [
     {
       id: "popup_modal",
-      title: "🪟 نافذة منبثقة (Popup Modal)",
-      badge: "الأعلى تحويلاً",
+      title: "🪟 Popup Modal",
+      badge: "Highest Conversion",
       badgeTone: "success",
-      desc: "نافذة عصرية تنبثق في منتصف الشاشة مع تعتيم الخلفية وتلفت انتباه العميل لإتمام الشراء فوراً."
+      desc: "Modern modal centered with backdrop blur, immediately capturing shopper focus to complete the order."
     },
     {
       id: "slide_drawer",
-      title: "📑 درج جانبي (Slide Drawer)",
-      badge: "عصري وسلس",
+      title: "📑 Slide Drawer",
+      badge: "Smooth & Mobile",
       badgeTone: "info",
-      desc: "ينزلق بنعومة من جانب الشاشة، متناسق جداً ومريح للعملاء على الهواتف الذكية."
+      desc: "Slides smoothly from the side of the screen, providing a native mobile app feel."
     },
     {
       id: "inline_form",
-      title: "📦 مدمج بالصفحة (Inline Form)",
-      badge: "كلاسيكي",
+      title: "📦 Embedded Inline",
+      badge: "Classic",
       badgeTone: "subdued",
-      desc: "يظهر كنموذج ثابت داخل صفحة المنتج تحت أزرار الشراء مباشرة دون أي نوافذ منبثقة."
+      desc: "Directly embedded inside the product page beneath add-to-cart buttons without modal popups."
     },
     {
       id: "sticky_bar",
-      title: "📱 شريط عائم (Sticky Buy Bar)",
-      badge: "خاص بالجوال",
+      title: "📱 Sticky Buy Bar",
+      badge: "Mobile Optimized",
       badgeTone: "attention",
-      desc: "شريط شراء عائم ومثبت أسفل شاشة الهاتف يظهر أثناء تصفح العميل للمنتج ويفتح النموذج بضغطة واحدة."
+      desc: "Floats at the bottom of mobile screens while scrolling and expands checkout with a single tap."
     }
   ];
 
   return (
-    <AppLayout title="Form Builder" subtitle="Custom COD Checkout & Multi-Template Engine">
+    <AppLayout title="Form Builder" subtitle="Custom Quick Order Checkout & Multi-Template Engine">
       <Page
         title="Form Builder & Multi-Template Settings"
         primaryAction={
@@ -221,7 +244,7 @@ export default function FormBuilderPage() {
             <Banner
               key={saveFeedback.timestamp}
               tone={saveFeedback.error ? "critical" : "success"}
-              title={saveFeedback.error ? "حدث خطأ أثناء الحفظ" : "تم الحفظ بنجاح"}
+              title={saveFeedback.error ? "Save Error" : "Successfully Saved"}
               onDismiss={() => setSaveFeedback(null)}
             >
               <Text as="p">{saveFeedback.message}</Text>
@@ -233,17 +256,17 @@ export default function FormBuilderPage() {
             <BlockStack gap="300">
               <InlineStack align="space-between">
                 <Text variant="headingMd" as="h2">Shopify Theme App Extension Status</Text>
-                <Badge tone="success">Production Ready (v2.0.0)</Badge>
+                <Badge tone="success">Production Ready (v2.1.0)</Badge>
               </InlineStack>
               <Text as="p" tone="subdued">
-                تحكم كامل في شكل ونموذج الدفع عند الاستلام وحقول العميل وتتبع المسوقين وعمولاتهم.
+                Full control over your quick order modal layout, customer fields, and tracking integrations.
               </Text>
               <InlineStack gap="300">
                 <Button
                   variant="primary"
                   onClick={() => window.open(`https://admin.shopify.com/store/themes/current/editor?context=apps`, "_blank")}
                 >
-                  فتح محرر الثيم وتفعيل App Embeds
+                  Open Theme Customizer & Activate App Embeds
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -253,9 +276,9 @@ export default function FormBuilderPage() {
           <Card>
             <BlockStack gap="400">
               <BlockStack gap="100">
-                <Text variant="headingMd" as="h2">1. اختر نموذج وشكل العرض (Display Mode)</Text>
+                <Text variant="headingMd" as="h2">1. Choose Display Mode</Text>
                 <Text as="p" tone="subdued">
-                  اختر الشكل الذي يفضله متجرك ليظهر للعميل عند النقر على الدفع عند الاستلام:
+                  Select the visual presentation style displayed to customers when opening quick order:
                 </Text>
               </BlockStack>
 
@@ -290,7 +313,7 @@ export default function FormBuilderPage() {
                                 setDisplayMode(mode.id);
                               }}
                             >
-                              {isSelected ? "✓ تم الاختيار" : "تفعيل هذا النموذج"}
+                              {isSelected ? "✓ Active Selection" : "Activate Mode"}
                             </Button>
                           </InlineStack>
                         </BlockStack>
@@ -305,73 +328,73 @@ export default function FormBuilderPage() {
           {/* 2. Customer Fields Config */}
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">2. حقول بيانات العميل والشحن (Customer Fields & Address Mode)</Text>
+              <Text variant="headingMd" as="h2">2. Customer Fields & Address Input Mode</Text>
               <Text as="p" tone="subdued">
-                حدد الحقول المطلوبة من العميل ونمط إدخال العنوان الأنسب لسوقك المستهدف:
+                Configure required customer fields and select the optimal address input mode:
               </Text>
 
               <Select
-                label="نمط إدخال العنوان واختيار المدينة (Address Input Mode)"
+                label="Address Input Mode"
                 options={[
-                  { label: "نمط كلاسيكي عادي: كتابة العنوان يدوياً (مع نظام تسعير توصيل موحد)", value: "standard" },
-                  { label: "قوائم منسدلة متتالية: الولاية / المحافظة ──► المدينة / القضاء (تسعير توصيل مخصص حسب كل مدينة)", value: "cascading" }
+                  { label: "Standard Manual Address (Single flat shipping or free shipping thresholds)", value: "standard" },
+                  { label: "Cascading Dropdowns: State / Province ──► City / Area (Custom regional shipping per city)", value: "cascading" }
                 ]}
                 value={addressMode}
                 onChange={setAddressMode}
                 helpText={
                   addressMode === "standard"
-                    ? "العميل يكتب عنوانه كاملاً بمرونة (المدينة، الحي، الشارع، رقم المنزل). يتم تطبيق سعر التوصيل الموحد أو التوصيل المجاني من القواعد العامة للشحن دون تشتيت العميل بقوائم منسدلة."
-                    : "العميل يختار ولايته أو محافظته أولاً ثم تظهر له مدنها تلقائياً (دعم تلقائي لولايات الجزائر، محافظات العراق، وجهات المغرب) مع حساب أسعار الشحن المخصصة لكل مدينة."
+                    ? "Customer inputs their full address smoothly (City, District, Street). Applies unified shipping or free delivery threshold without distraction."
+                    : "Customer selects their Province/State first, then cities dynamically appear (supports Algeria, Iraq, Morocco, and Saudi Arabia) with city-level shipping rates."
                 }
               />
 
               <InlineStack gap="400">
-                <Checkbox label="الاسم الكامل (Full Name)" checked={reqName} onChange={setReqName} />
-                <Checkbox label="رقم الهاتف (Phone Number)" checked={reqPhone} onChange={setReqPhone} />
+                <Checkbox label="Full Name" checked={reqName} onChange={setReqName} />
+                <Checkbox label="Phone Number" checked={reqPhone} onChange={setReqPhone} />
                 {addressMode === "cascading" && (
-                  <Checkbox label="الولاية والمدينة (State & City Dropdowns)" checked={reqCity} onChange={setReqCity} />
+                  <Checkbox label="State & City Dropdowns" checked={reqCity} onChange={setReqCity} />
                 )}
-                <Checkbox label="العنوان التفصيلي (Detailed Address)" checked={reqAddress} onChange={setReqAddress} />
-                <Checkbox label="ملاحظات التوصيل (Delivery Note)" checked={reqNote} onChange={setReqNote} />
+                <Checkbox label="Detailed Street Address" checked={reqAddress} onChange={setReqAddress} />
+                <Checkbox label="Delivery Note" checked={reqNote} onChange={setReqNote} />
               </InlineStack>
             </BlockStack>
           </Card>
 
-          {/* 3. Features & Conversion Boosters */}
+          {/* 3. Conversion Boosters & Features */}
           <Card>
             <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">3. ميزات تعزيز المبيعات والتحويلات (Conversion & Tracking)</Text>
+              <Text variant="headingMd" as="h2">3. Conversion Boosters & Triggers</Text>
               <Text as="p" tone="subdued">
-                أدوات ذكية مدمجة لرفع نسبة التحويل وتتبع العمولات وحساب الخصومات:
+                Built-in conversion features to maximize order completion and tracking:
               </Text>
               <BlockStack gap="200">
                 <Checkbox
-                  label="تفعيل شراء المنتج المباشر من صفحته (Direct Buy Now)"
-                  helpText="عند النقر على الزر في صفحة المنتج، يتم فتح النموذج فوراً بالمنتج المختار دون إجبار العميل على الذهاب للسلة."
+                  label="Direct Buy Now from Product Page"
+                  helpText="Clicking Buy Now opens the checkout form immediately with the selected variant without forcing cart redirect."
                   checked={directBuyTrigger}
                   onChange={setDirectBuyTrigger}
                 />
                 <Checkbox
-                  label="تفعيل زر الدفع في السلة (Cart Checkout Integration)"
-                  helpText="إظهار ملخص كامل للمنتجات الموجودة في السلة وإمكانية زيادة أو إنقاص الكمية داخل النافذة."
+                  label="Cart & Drawer Checkout Integration"
+                  helpText="Displays the Quick Order button inside side cart drawers and the dedicated cart page."
                   checked={cartDrawerTrigger}
                   onChange={setCartDrawerTrigger}
                 />
                 <Checkbox
-                  label="إظهار ملخص المنتجات والكميات (+/-) داخل النافذة (Cart Summary)"
-                  helpText="يسمح للعميل بمشاهدة صور المنتجات، تعديل كمياتها أو حذف منتج بسهولة داخل النافذة."
+                  label="Live Cart Summary & Quantity Stepper (+/-)"
+                  helpText="Allows customers to review line items, modify quantities, or remove items within the modal."
                   checked={enableCartSummary}
                   onChange={setEnableCartSummary}
                 />
                 <Checkbox
-                  label="تفعيل خانة كوبونات الخصم (Discount Coupons)"
-                  helpText="إتاحة حقل إدخال كود الخصم داخل النافذة مع عكس الخصم فوراً."
+                  label="Discount & Coupon Code Field"
+                  helpText="Enables promo coupon code input with instant price recalculation."
                   checked={enableDiscounts}
                   onChange={setEnableDiscounts}
                 />
                 <Checkbox
-                  label="تتبع برامج الإحالة والمسوقين تلقائياً (Affiliate Tracking Integration)"
-                  helpText="يدعم تطبيقات GoAffPro, BixGrow, UpPromote وغيرها بحقن كود المسوق في الطلب لاحتساب العمولات تلقائياً."
+                  label="Affiliate Tracking Integration"
+                  helpText="Seamlessly captures affiliate referral codes for GoAffPro, BixGrow, UpPromote, etc."
                   checked={enableAffiliateTracking}
                   onChange={setEnableAffiliateTracking}
                 />
@@ -383,21 +406,21 @@ export default function FormBuilderPage() {
           <Card>
             <BlockStack gap="300">
               <InlineStack align="space-between">
-                <Text variant="headingMd" as="h2">4. وسائل وبوابات الدفع (Payment Gateways & Methods)</Text>
-                <Badge tone="info">نظام الدفع المتعدد</Badge>
+                <Text variant="headingMd" as="h2">4. Payment Gateways & Methods</Text>
+                <Badge tone="info">Multi-Gateway Enabled</Badge>
               </InlineStack>
               <Text as="p" tone="subdued">
-                تحكم في وسائل الدفع المتاحة لعملائك داخل نافذة الطلب وتخصيص كل وسيلة بحرية:
+                Manage available payment methods within the quick checkout modal:
               </Text>
 
               <BlockStack gap="300">
                 <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                   <InlineStack align="space-between" blockAlign="center">
                     <BlockStack gap="100">
-                      <Text variant="bodyMd" fontWeight="bold">💵 الدفع عند الاستلام (Cash on Delivery)</Text>
-                      <Text variant="bodySm" tone="subdued">ادفع نقداً عند استلام شحنتك من المندوب. ينشئ الطلب فوراً في شوبيفاي.</Text>
+                      <Text variant="bodyMd" fontWeight="bold">💵 Cash on Delivery (COD)</Text>
+                      <Text variant="bodySm" tone="subdued">Pay in cash upon delivery at your doorstep. Order is created directly in Shopify.</Text>
                     </BlockStack>
-                    <Checkbox label="مفعل" checked={enableCod} onChange={setEnableCod} />
+                    <Checkbox label="Enabled" checked={enableCod} onChange={setEnableCod} />
                   </InlineStack>
                 </Box>
 
@@ -405,14 +428,14 @@ export default function FormBuilderPage() {
                   <InlineStack align="space-between" blockAlign="center">
                     <BlockStack gap="100">
                       <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="bold">💳 دفع إلكتروني - WAYL</Text>
+                        <Text variant="bodyMd" fontWeight="bold">💳 Electronic Payment - WAYL</Text>
                         <Badge tone="success">MasterCard / Visa / ZainCash / FIB / FastPay / Qi Card</Badge>
                       </InlineStack>
                       <Text variant="bodySm" tone="subdued">
-                        تحويل آمن لبوابة الدفع وتأكيد الطلب وتحديث حالته إلى مدفوع آلياً فور إتمام العميل للدفع.
+                        Secure 3D-Secure payment gateway with automatic order payment status confirmation.
                       </Text>
                     </BlockStack>
-                    <Checkbox label="مفعل" checked={enableWayl} onChange={setEnableWayl} />
+                    <Checkbox label="Enabled" checked={enableWayl} onChange={setEnableWayl} />
                   </InlineStack>
                 </Box>
 
@@ -421,20 +444,20 @@ export default function FormBuilderPage() {
                     <InlineStack align="space-between" blockAlign="center">
                       <BlockStack gap="100">
                         <InlineStack gap="200" blockAlign="center">
-                          <Text variant="bodyMd" fontWeight="bold">💬 الطلب المباشر عبر واتساب (WhatsApp Order)</Text>
-                          <Badge tone="attention">محادثة فورية</Badge>
+                          <Text variant="bodyMd" fontWeight="bold">💬 Direct WhatsApp Order</Text>
+                          <Badge tone="attention">Instant Chat</Badge>
                         </InlineStack>
                         <Text variant="bodySm" tone="subdued">
-                          يسجل الطلب في شوبيفاي ويفتح نافذة محادثة واتساب موجهة لرقم خدمة العملاء مع ملخص الطلب كاملاً.
+                          Registers order in Shopify and initiates customer care WhatsApp chat with full order summary.
                         </Text>
                       </BlockStack>
-                      <Checkbox label="مفعل" checked={enableWhatsapp} onChange={setEnableWhatsapp} />
+                      <Checkbox label="Enabled" checked={enableWhatsapp} onChange={setEnableWhatsapp} />
                     </InlineStack>
                     {enableWhatsapp && (
                       <Box maxWidth="350px">
                         <TextField
-                          label="رقم واتساب المتجر (مع مفتاح الدولة بدون +)"
-                          placeholder="مثال: 9647700000000"
+                          label="Store WhatsApp Number (with country code, no +)"
+                          placeholder="e.g. 9647700000000"
                           value={whatsappPhone}
                           onChange={setWhatsappPhone}
                           autoComplete="off"
@@ -443,85 +466,159 @@ export default function FormBuilderPage() {
                     )}
                   </BlockStack>
                 </Box>
-
-                <Box padding="300" background="bg-surface-secondary" borderRadius="200">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <BlockStack gap="100">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text variant="bodyMd" fontWeight="bold">🇸🇦 ادفع باي (Edfapay السعودية) & Network International</Text>
-                        <Badge tone="subdued">قريباً / جاهز للتفعيل</Badge>
-                      </InlineStack>
-                      <Text variant="bodySm" tone="subdued">
-                        مدى، أبل باي، بطاقات فيزا وماستركارد في السعودية والإمارات.
-                      </Text>
-                    </BlockStack>
-                    <Badge tone="subdued">Scaffold Ready</Badge>
-                  </InlineStack>
-                </Box>
               </BlockStack>
             </BlockStack>
           </Card>
 
-          {/* 5. Styling & Texts */}
+          {/* 5. Branding & Colors (Root Palette) */}
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">5. نصوص وتسميات الأزرار والنموذج (Texts & Labels)</Text>
+              <Text variant="headingMd" as="h2">5. Branding & Color System (Root Palette)</Text>
               <Text as="p" tone="subdued">
-                تخصيص تسميات الأزرار وعناوين النموذج لتتناسب تماماً مع لغة وأسلوب متجرك وطرق الدفع المفعلة:
+                Manage unified brand colors for primary and secondary action buttons, hover states, and borders:
+              </Text>
+
+              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                <BlockStack gap="300">
+                  <Text variant="headingSm" as="h3">Primary Action Button (Buy Now / Quick Order)</Text>
+                  <Grid>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                      <TextField
+                        label="Background Color (Hex)"
+                        value={primaryColor}
+                        onChange={setPrimaryColor}
+                        autoComplete="off"
+                        helpText="Primary brand color (e.g. #020a25)"
+                      />
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                      <TextField
+                        label="Hover Background Color (Hex)"
+                        value={primaryHoverColor}
+                        onChange={setPrimaryHoverColor}
+                        autoComplete="off"
+                        helpText="Button hover state (e.g. #0a1845)"
+                      />
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 4, md: 4, lg: 4, xl: 4 }}>
+                      <TextField
+                        label="Text & Icon Color (Hex)"
+                        value={buttonTextColor}
+                        onChange={setButtonTextColor}
+                        autoComplete="off"
+                        helpText="Primary button text (e.g. #ffffff)"
+                      />
+                    </Grid.Cell>
+                  </Grid>
+                </BlockStack>
+              </Box>
+
+              <Box padding="300" background="bg-surface-secondary" borderRadius="200">
+                <BlockStack gap="300">
+                  <Text variant="headingSm" as="h3">Secondary Action Button (Add to Cart)</Text>
+                  <Grid>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}>
+                      <TextField
+                        label="Background Color (Hex)"
+                        value={secondaryColor}
+                        onChange={setSecondaryColor}
+                        autoComplete="off"
+                        helpText="Add to Cart background (e.g. #ffffff)"
+                      />
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}>
+                      <TextField
+                        label="Hover Background (Hex)"
+                        value={secondaryHoverColor}
+                        onChange={setSecondaryHoverColor}
+                        autoComplete="off"
+                        helpText="Hover state (e.g. #f8fafc)"
+                      />
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}>
+                      <TextField
+                        label="Text Color (Hex)"
+                        value={secondaryTextColor}
+                        onChange={setSecondaryTextColor}
+                        autoComplete="off"
+                        helpText="Text color (e.g. #1e293b)"
+                      />
+                    </Grid.Cell>
+                    <Grid.Cell columnSpan={{ xs: 6, sm: 3, md: 3, lg: 3, xl: 3 }}>
+                      <TextField
+                        label="Border Color (Hex)"
+                        value={secondaryBorderColor}
+                        onChange={setSecondaryBorderColor}
+                        autoComplete="off"
+                        helpText="Border color (e.g. #cbd5e1)"
+                      />
+                    </Grid.Cell>
+                  </Grid>
+                </BlockStack>
+              </Box>
+            </BlockStack>
+          </Card>
+
+          {/* 6. Texts & Labels */}
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">6. Storefront Texts & Labels</Text>
+              <Text as="p" tone="subdued">
+                Customize button copy, form headings, and badge labels displayed to your storefront customers:
               </Text>
               <Grid>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="نص زر الطلب في صفحة المنتج (Product Page Buy Button Text)"
+                    label="Product Page Buy Button Text"
                     value={buttonText}
                     onChange={setButtonText}
                     autoComplete="off"
-                    helpText="يظهر على زر الطلب السريع الرئيسي بصفحة المنتج (مثال: أطلب الآن / اشتري الآن)"
+                    helpText="Appears on the primary Quick Order button (e.g. أطلب الآن / Buy Now)"
                   />
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="نص زر إكمال الطلب في النافذة (Modal Submit Button Text)"
+                    label="Modal Submit Button Text"
                     value={submitButtonText}
                     onChange={setSubmitButtonText}
                     autoComplete="off"
-                    helpText="يظهر على زر تأكيد الطلب النهائي أسفل النموذج (مثال: إكمال الدفع / تأكيد الطلب)"
+                    helpText="Appears on the order confirmation button at bottom of modal"
                   />
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="عنوان نافذة الطلب (Form / Modal Title)"
+                    label="Form / Modal Header Title"
                     value={formTitle}
                     onChange={setFormTitle}
                     autoComplete="off"
-                    helpText="يظهر كعنوان أعلى نافذة أو درج الطلب (مثال: معلومات الطلب / إتمام الشراء)"
+                    helpText="Title shown at top of the order modal or drawer (e.g. معلومات الطلب)"
                   />
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="نص زر إضافة للسلة (Add To Cart Button Text)"
+                    label="Add To Cart Button Text"
                     value={addToCartButtonText}
                     onChange={setAddToCartButtonText}
                     autoComplete="off"
-                    helpText="يظهر على زر الإضافة للسلة بجانب زر الطلب السريع (مثال: أضف إلى السلة)"
+                    helpText="Text on the Add to Cart button next to Quick Order (e.g. أضف إلى السلة)"
                   />
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="نص زر الدفع في السلة الجانبية (Cart Checkout Button Text)"
+                    label="Cart Checkout Button Text"
                     value={cartCheckoutButtonText}
                     onChange={setCartCheckoutButtonText}
                     autoComplete="off"
-                    helpText="يظهر في السلة ودرج السلة Slide Cart Drawer (مثال: إتمام الطلب)"
+                    helpText="Appears in slide cart drawers and cart page (e.g. إتمام الطلب)"
                   />
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 6, sm: 6, md: 6, lg: 6, xl: 6 }}>
                   <TextField
-                    label="لون الزر الرئيسي (Primary Color Hex)"
-                    value={primaryColor}
-                    onChange={setPrimaryColor}
+                    label="Discount Badge Prefix"
+                    value={discountBadgePrefix}
+                    onChange={setDiscountBadgePrefix}
                     autoComplete="off"
-                    helpText="كود لون الهوية الرئيسي للأزرار وعناصر التأكيد (مثال: #020a25)"
+                    helpText="Single badge text prefix shown next to discounted prices (e.g. خصم or Save)"
                   />
                 </Grid.Cell>
               </Grid>
@@ -532,7 +629,7 @@ export default function FormBuilderPage() {
           <Box paddingBlockEnd="600">
             <InlineStack align="end">
               <Button variant="primary" size="large" loading={isSaving} onClick={handleSave}>
-                حفظ كافة الإعدادات (Save Configuration)
+                Save Configuration
               </Button>
             </InlineStack>
           </Box>
