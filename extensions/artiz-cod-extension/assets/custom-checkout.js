@@ -1903,6 +1903,9 @@
   }
 
   function getSubmitButtonLabel() {
+    if (selectedPaymentMethod === "wayl") {
+      return activeConfig.waylSubmitButtonText || "الانتقال للدفع الآمن ←";
+    }
     return activeConfig.submitButtonText || activeConfig.buttonText || "أطلب الآن";
   }
 
@@ -1978,10 +1981,47 @@
       }
     }, 0);
 
-    // Case 2: Only 1 Method Enabled
+    // Case 2: Only 1 Method Enabled -> Show it clearly as default / locked!
     if (enabledKeys.length === 1) {
-      selectedPaymentMethod = enabledKeys[0];
-      return "";
+      const key = enabledKeys[0];
+      selectedPaymentMethod = key;
+      const m = methods[key] || {};
+      const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
+      const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
+        ? "دفع إلكتروني - WAYL"
+        : (m.title || (key === "cod" ? "الدفع عند الاستلام" : key));
+      const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
+        ? "دفع آمن — زين كاش، آسيا حوالة، فيزا وماستركارد"
+        : (m.subtitle || (key === "cod" ? "💵 ادفع نقداً بكل أمان وقت استلام المنتج." : ""));
+
+      return `
+        <div class="artiz-payment-methods-section artiz-payment-single-method">
+          <label class="artiz-payment-methods-title">طريقة الدفع المعتمدة</label>
+          <div class="artiz-payment-card active artiz-payment-card-locked" data-method="${key}">
+            <div class="artiz-pay-radio-col">
+              <input type="radio" name="artiz_payment_choice" value="${key}" checked disabled>
+            </div>
+            <div class="artiz-pay-info-col">
+              <div class="artiz-pay-header-row">
+                <span class="artiz-pay-icon">${iconBadge}</span>
+                <strong class="artiz-pay-name">${displayTitle}</strong>
+                <span class="artiz-pay-badge artiz-pay-badge-default">محددة افتراضياً</span>
+              </div>
+              ${displaySubtitle ? `<p class="artiz-pay-subtitle">${displaySubtitle}</p>` : ''}
+              ${key === 'wayl' ? `
+                <div class="artiz-pay-gateways-logos">
+                  <span class="artiz-brand-tag">MasterCard</span>
+                  <span class="artiz-brand-tag">Visa</span>
+                  <span class="artiz-brand-tag">ZainCash</span>
+                  <span class="artiz-brand-tag">AsiaHawala</span>
+                  <span class="artiz-brand-tag">FIB</span>
+                  <span class="artiz-brand-tag">Qi Card</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     // Case 3: 2 or More Methods Enabled -> Show Modern Selector!
@@ -1991,7 +2031,7 @@
 
     return `
       <div class="artiz-payment-methods-section">
-        <label class="artiz-payment-methods-title">طريقة الدفع والتأكيد *</label>
+        <label class="artiz-payment-methods-title">اختر طريقة الدفع المناسبة لك *</label>
         <div class="artiz-payment-cards-grid">
           ${enabledKeys.map(key => {
             const m = methods[key] || {};
@@ -1999,9 +2039,9 @@
             const iconBadge = (key === "wayl" || m.icon === "electronic" || m.icon === "card") ? "💳" : "💵";
             const displayTitle = (key === "wayl" && (!m.title || m.title.includes("MasterCard") || m.title.includes("بوابة")))
               ? "دفع إلكتروني - WAYL"
-              : (m.title || key);
+              : (m.title || (key === "cod" ? "الدفع عند الاستلام" : key));
             const displaySubtitle = (key === "wayl" && (!m.subtitle || (m.subtitle.includes("3D Secure") && !m.subtitle.includes("SSL"))))
-              ? "دفع آمن — SSL & 3D Secure"
+              ? "دفع فوري وآمن — زين كاش، فيزا وماستركارد"
               : (m.subtitle || "");
 
             return `
@@ -2021,8 +2061,8 @@
                       <span class="artiz-brand-tag">MasterCard</span>
                       <span class="artiz-brand-tag">Visa</span>
                       <span class="artiz-brand-tag">ZainCash</span>
+                      <span class="artiz-brand-tag">AsiaHawala</span>
                       <span class="artiz-brand-tag">FIB</span>
-                      <span class="artiz-brand-tag">FastPay</span>
                       <span class="artiz-brand-tag">Qi Card</span>
                     </div>
                   ` : ''}

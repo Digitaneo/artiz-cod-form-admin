@@ -1360,6 +1360,23 @@ body.artiz-hijack-mode .artiz-dual-actions {
   color: #166534;
 }
 
+.artiz-payment-card-locked {
+  cursor: default !important;
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+}
+
+.artiz-payment-card-locked:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.artiz-pay-badge-default {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+  border-color: #bae6fd !important;
+}
+
 /* ============================================================
    15. EMBEDDED INLINE CHECKOUT FORM MODE
    ============================================================ */
