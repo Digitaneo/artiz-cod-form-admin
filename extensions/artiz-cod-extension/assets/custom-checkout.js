@@ -2581,6 +2581,15 @@
   }
 
   // 8. Capture Affiliate Attribution
+  function isInternalFlag(key, val) {
+    if (!key) return true;
+    const k = String(key).toLowerCase().trim();
+    const v = String(val !== undefined && val !== null ? val : "").toLowerCase().trim();
+    if (k.startsWith("bg_flag_") || k.includes("_flag_") || k.includes("flag_app")) return true;
+    if (v === "called" || v === "true" || v === "false" || v === "") return true;
+    return false;
+  }
+
   function getAffiliateTrackingData() {
     if (activeConfig?.enableAffiliateTracking === false) {
       return {};
@@ -2597,12 +2606,12 @@
     // 1. URL Query Parameters
     knownKeys.forEach(k => {
       const val = urlParams.get(k);
-      if (val) affiliate[k] = val;
+      if (val && !isInternalFlag(k, val)) affiliate[k] = val;
     });
 
-    // Also check any parameter starting with _bg_ or bg_
+    // Also check any parameter starting with _bg_ (strictly with underscore prefix)
     for (const [k, v] of urlParams.entries()) {
-      if ((k.startsWith("_bg_") || k.startsWith("bg_")) && v) {
+      if (k.startsWith("_bg_") && v && !isInternalFlag(k, v)) {
         affiliate[k] = v;
       }
     }
@@ -2614,19 +2623,17 @@
         const parts = c.trim().split("=");
         const k = parts[0]?.trim();
         const v = parts.slice(1).join("=");
-        if (k && v) {
+        if (k && v && !isInternalFlag(k, v)) {
           const kLower = k.toLowerCase();
           if (
             k.startsWith("_bg_") ||
-            k.startsWith("bg_") ||
             knownKeys.includes(k) ||
             kLower.includes("aff") ||
             kLower.includes("partner") ||
             kLower.includes("referral") ||
             kLower.includes("uppromote") ||
             kLower.includes("bixgrow") ||
-            kLower.includes("goaffpro") ||
-            kLower.includes("track")
+            kLower.includes("goaffpro")
           ) {
             affiliate[k] = decodeURIComponent(v);
           }
@@ -2639,20 +2646,19 @@
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (k) {
-          const kLower = k.toLowerCase();
-          if (
-            k.startsWith("_bg_") ||
-            k.startsWith("bg_") ||
-            knownKeys.includes(k) ||
-            kLower.includes("aff") ||
-            kLower.includes("partner") ||
-            kLower.includes("referral") ||
-            kLower.includes("uppromote") ||
-            kLower.includes("bixgrow") ||
-            kLower.includes("goaffpro")
-          ) {
-            const val = localStorage.getItem(k);
-            if (val && typeof val === "string") {
+          const val = localStorage.getItem(k);
+          if (val && typeof val === "string" && !isInternalFlag(k, val)) {
+            const kLower = k.toLowerCase();
+            if (
+              k.startsWith("_bg_") ||
+              knownKeys.includes(k) ||
+              kLower.includes("aff") ||
+              kLower.includes("partner") ||
+              kLower.includes("referral") ||
+              kLower.includes("uppromote") ||
+              kLower.includes("bixgrow") ||
+              kLower.includes("goaffpro")
+            ) {
               affiliate[k] = val;
             }
           }
@@ -2661,20 +2667,19 @@
       for (let i = 0; i < sessionStorage.length; i++) {
         const k = sessionStorage.key(i);
         if (k) {
-          const kLower = k.toLowerCase();
-          if (
-            k.startsWith("_bg_") ||
-            k.startsWith("bg_") ||
-            knownKeys.includes(k) ||
-            kLower.includes("aff") ||
-            kLower.includes("partner") ||
-            kLower.includes("referral") ||
-            kLower.includes("uppromote") ||
-            kLower.includes("bixgrow") ||
-            kLower.includes("goaffpro")
-          ) {
-            const val = sessionStorage.getItem(k);
-            if (val && typeof val === "string") {
+          const val = sessionStorage.getItem(k);
+          if (val && typeof val === "string" && !isInternalFlag(k, val)) {
+            const kLower = k.toLowerCase();
+            if (
+              k.startsWith("_bg_") ||
+              knownKeys.includes(k) ||
+              kLower.includes("aff") ||
+              kLower.includes("partner") ||
+              kLower.includes("referral") ||
+              kLower.includes("uppromote") ||
+              kLower.includes("bixgrow") ||
+              kLower.includes("goaffpro")
+            ) {
               affiliate[k] = val;
             }
           }
@@ -2818,10 +2823,29 @@
           note
         },
         items: orderItems.map(item => {
-          const itemProps = { ...(item.properties || {}) };
+          const itemProps = {};
+          if (item.properties && typeof item.properties === "object") {
+            if (Array.isArray(item.properties)) {
+              for (const p of item.properties) {
+                if (p && (p.key || p.name) && p.value !== undefined && p.value !== null) {
+                  const pk = String(p.key || p.name);
+                  const pv = String(p.value);
+                  if (!isInternalFlag(pk, pv)) {
+                    itemProps[pk] = pv;
+                  }
+                }
+              }
+            } else {
+              for (const [pk, pv] of Object.entries(item.properties)) {
+                if (pv !== undefined && pv !== null && String(pv).trim() !== "" && !isInternalFlag(pk, pv)) {
+                  itemProps[pk] = String(pv);
+                }
+              }
+            }
+          }
           if (affiliateData && typeof affiliateData === "object") {
             for (const [k, v] of Object.entries(affiliateData)) {
-              if (v && !itemProps[k]) {
+              if (v && !isInternalFlag(k, v) && !itemProps[k]) {
                 itemProps[k] = String(v);
               }
             }
@@ -2833,7 +2857,7 @@
             originalPrice: item.originalPrice,
             unitDiscount: item.unitDiscount || 0,
             discountTitle: item.discountTitle || "",
-            properties: itemProps
+            properties: Object.keys(itemProps).length > 0 ? itemProps : undefined
           };
         }),
         shippingPrice: currentCalculatedShipping.cost,
