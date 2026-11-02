@@ -25,6 +25,7 @@ export default function App() {
         <s-link href="/app/form-builder">📋 Form Builder</s-link>
         <s-link href="/app/fraud-prevention">🛡 Fraud Prevention</s-link>
         <s-link href="/app/delivery-success">🚚 Delivery CRM</s-link>
+        <s-link href="/app/abandoned-checkouts">🛒 السلات المتروكة</s-link>
         <s-link href="/app/shipping">📦 Shipping Engine</s-link>
         <s-link href="/app/sales-booster">📈 Sales Booster</s-link>
         <s-link href="/app/analytics">📊 Analytics</s-link>
