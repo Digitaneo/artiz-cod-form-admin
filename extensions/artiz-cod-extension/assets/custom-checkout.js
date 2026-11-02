@@ -2586,7 +2586,6 @@
     const k = String(key).toLowerCase().trim();
     const v = String(val !== undefined && val !== null ? val : "").toLowerCase().trim();
     if (k.startsWith("bg_flag_") || k.includes("_flag_") || k.includes("flag_app")) return true;
-    if (k === "bgaffilite_id" || k.startsWith("bgaffilite") || k === "bgaffiliate_id" || k.startsWith("bg_affilite") || k.startsWith("bgaff")) return true;
     if (v === "called" || v === "true" || v === "false" || v === "") return true;
     return false;
   }
@@ -2599,7 +2598,7 @@
     const affiliate = {};
     const urlParams = new URLSearchParams(window.location.search);
     const knownKeys = [
-      "_bg_aff", "_bg_click_id", "_bg_discount", "_bg_coupon",
+      "_bg_aff", "_bg_click_id", "_bg_discount", "_bg_coupon", "bgaffilite_id", "bgaffiliate_id",
       "ref", "sca_ref", "bixgrow_ref", "bix_aff", "goaffpro_affiliate", 
       "affiliate_id", "via", "partner", "utm_source", "utm_medium", "utm_campaign"
     ];
