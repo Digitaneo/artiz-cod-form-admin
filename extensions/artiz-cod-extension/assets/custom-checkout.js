@@ -2586,6 +2586,7 @@
     const k = String(key).toLowerCase().trim();
     const v = String(val !== undefined && val !== null ? val : "").toLowerCase().trim();
     if (k.startsWith("bg_flag_") || k.includes("_flag_") || k.includes("flag_app")) return true;
+    if (k === "bgaffilite_id" || k.startsWith("bgaffilite") || k === "bgaffiliate_id" || k.startsWith("bg_affilite") || k.startsWith("bgaff")) return true;
     if (v === "called" || v === "true" || v === "false" || v === "") return true;
     return false;
   }
@@ -2628,11 +2629,10 @@
           if (
             k.startsWith("_bg_") ||
             knownKeys.includes(k) ||
-            kLower.includes("aff") ||
+            kLower.includes("affiliate") ||
             kLower.includes("partner") ||
             kLower.includes("referral") ||
             kLower.includes("uppromote") ||
-            kLower.includes("bixgrow") ||
             kLower.includes("goaffpro")
           ) {
             affiliate[k] = decodeURIComponent(v);
@@ -2652,11 +2652,10 @@
             if (
               k.startsWith("_bg_") ||
               knownKeys.includes(k) ||
-              kLower.includes("aff") ||
+              kLower.includes("affiliate") ||
               kLower.includes("partner") ||
               kLower.includes("referral") ||
               kLower.includes("uppromote") ||
-              kLower.includes("bixgrow") ||
               kLower.includes("goaffpro")
             ) {
               affiliate[k] = val;
@@ -2673,11 +2672,10 @@
             if (
               k.startsWith("_bg_") ||
               knownKeys.includes(k) ||
-              kLower.includes("aff") ||
+              kLower.includes("affiliate") ||
               kLower.includes("partner") ||
               kLower.includes("referral") ||
               kLower.includes("uppromote") ||
-              kLower.includes("bixgrow") ||
               kLower.includes("goaffpro")
             ) {
               affiliate[k] = val;
